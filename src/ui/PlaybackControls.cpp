@@ -3,9 +3,6 @@
 
 PlaybackControls::PlaybackControls(KiraNastroProcessor &processor)
     : processor(processor) {
-  // Set the component's size first
-  setSize(800, 60);
-
   // Create buttons
   playButton = std::make_unique<juce::TextButton>("Play");
   stopButton = std::make_unique<juce::TextButton>("Stop");
@@ -32,18 +29,33 @@ PlaybackControls::PlaybackControls(KiraNastroProcessor &processor)
                         juce::Colour(0xFF27AE60));
   nextButton->setColour(juce::TextButton::textColourOnId, juce::Colours::white);
 
-  // Set fixed positions for buttons
-  playButton->setBounds(300, 10, 100, 40);
-  stopButton->setBounds(410, 10, 100, 40);
-  nextButton->setBounds(520, 10, 100, 40);
+  // Set the component's size last to avoid calling resized() before buttons are
+  // ready
+  setSize(800, 80);
 }
 
 void PlaybackControls::paint(juce::Graphics &g) {
+  juce::ignoreUnused(g);
   // Optional: paint a background for the controls
 }
 
 void PlaybackControls::resized() {
-  // Fixed positions, no need for resizing logic
+  if (playButton == nullptr || stopButton == nullptr || nextButton == nullptr)
+    return;
+
+  const int buttonWidth = 120;
+  const int buttonHeight = 40;
+  const int spacing = 10;
+  const int totalWidth = (buttonWidth * 3) + (spacing * 2);
+
+  int x = (getWidth() - totalWidth) / 2;
+  int y = (getHeight() - buttonHeight) / 2;
+
+  playButton->setBounds(x, y, buttonWidth, buttonHeight);
+  x += buttonWidth + spacing;
+  stopButton->setBounds(x, y, buttonWidth, buttonHeight);
+  x += buttonWidth + spacing;
+  nextButton->setBounds(x, y, buttonWidth, buttonHeight);
 }
 
 void PlaybackControls::buttonClicked(juce::Button *button) {

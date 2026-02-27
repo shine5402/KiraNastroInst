@@ -48,7 +48,11 @@ KiraNastroEditor::KiraNastroEditor(KiraNastroProcessor &p)
   addAndMakeVisible(timingIndicator.get());
 #endif
 
-  setSize(800, 320);
+#ifdef JUCE_STANDALONE_APPLICATION
+  setSize(800, 480);
+#else
+  setSize(800, 240);
+#endif
   startTimerHz(30);
 }
 
@@ -63,9 +67,12 @@ void KiraNastroEditor::paint(juce::Graphics &g) {
 
   // Main Card Area
   auto area = getLocalBounds().reduced(20);
+  area.removeFromTop(50); // Space for header row
+
 #ifdef JUCE_STANDALONE_APPLICATION
-  area.removeFromBottom(60); // Space for controls
+  area.removeFromBottom(100); // More space for controls and entry indicator
 #endif
+
   auto cardArea = area.removeFromTop(140);
 
   g.setColour(juce::Colours::white);
@@ -89,32 +96,38 @@ void KiraNastroEditor::paint(juce::Graphics &g) {
   g.setFont(48.0f);
   g.drawFittedText(currentEntryName, textArea, juce::Justification::left, 1);
 
+#ifdef JUCE_STANDALONE_APPLICATION
   // Total progress indicator at bottom
   const int total = audioProcessor.totalEntries.load();
   g.setFont(16.0f);
   g.setColour(juce::Colours::darkgrey);
   g.drawFittedText("Entry: " + juce::String(lastEntryIndex + 1) + " / " +
                        juce::String(total),
-                   getLocalBounds().withTrimmedBottom(80),
+                   getLocalBounds().withTrimmedBottom(100).removeFromBottom(20),
                    juce::Justification::centredBottom, 1);
+#endif
 }
 
 void KiraNastroEditor::resized() {
-  // Configuration buttons
+  // Configuration buttons in a dedicated header row
   loadReclistButton->setBounds(20, 20, 150, 40);
   loadBGMButton->setBounds(180, 20, 150, 40);
 
 #ifdef JUCE_STANDALONE_APPLICATION
   auto area = getLocalBounds().reduced(20);
+  area.removeFromTop(50); // Skip header row
   auto cardArea = area.removeFromTop(140);
+
   if (timingIndicator)
     timingIndicator->setBounds(cardArea.removeFromRight(100).reduced(10));
 
   // Progress slider
-  progressSlider->setBounds(20, 180, getWidth() - 40, 40);
+  progressSlider->setBounds(20, 240, getWidth() - 40, 40);
+  progressSlider->setColour(juce::Slider::textBoxTextColourId,
+                            juce::Colour(0xFF1A3FC7));
 
-  // Playback controls
-  playbackControls->setBounds(0, getHeight() - 60, getWidth(), 60);
+  // Playback controls at the very bottom
+  playbackControls->setBounds(0, getHeight() - 80, getWidth(), 80);
 #endif
 }
 
