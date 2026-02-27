@@ -3,18 +3,18 @@
 
 // MD3 Light Scheme
 const juce::Colour KiraNastroLookAndFeel::md3Background          { 0xFFFBF8FF };
-const juce::Colour KiraNastroLookAndFeel::md3CardFilled          { 0xFFE3E1E9 };
+const juce::Colour KiraNastroLookAndFeel::md3CardFilled          { 0xFFF4F2FA };
 const juce::Colour KiraNastroLookAndFeel::md3Primary             { 0xFF4E5B92 };
 const juce::Colour KiraNastroLookAndFeel::md3OnSurfaceVariant    { 0xFF45464F };
 const juce::Colour KiraNastroLookAndFeel::md3SecondaryContainer  { 0xFFDEE1F9 };
 const juce::Colour KiraNastroLookAndFeel::md3OnSecondaryContainer{ 0xFF424659 };
 const juce::Colour KiraNastroLookAndFeel::md3SurfaceVariant      { 0xFFE2E1EC };
-const juce::Colour KiraNastroLookAndFeel::md3NavBar              { 0xFF1E40AF };
+const juce::Colour KiraNastroLookAndFeel::md3NavBar              { 0xFF3755C3 };
 const juce::Colour KiraNastroLookAndFeel::md3OnNavBar            { 0xFFFFFFFF };
 
 // MD3 Dark Scheme
 const juce::Colour KiraNastroLookAndFeel::md3BackgroundDark           { 0xFF121318 };
-const juce::Colour KiraNastroLookAndFeel::md3CardFilledDark           { 0xFF34343A };
+const juce::Colour KiraNastroLookAndFeel::md3CardFilledDark           { 0xFF1A1B21 };
 const juce::Colour KiraNastroLookAndFeel::md3PrimaryDark              { 0xFFB8C4FF };
 const juce::Colour KiraNastroLookAndFeel::md3OnSurfaceVariantDark     { 0xFFC6C5D0 };
 const juce::Colour KiraNastroLookAndFeel::md3SecondaryContainerDark   { 0xFF424659 };

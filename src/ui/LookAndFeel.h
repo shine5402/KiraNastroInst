@@ -7,18 +7,18 @@ class KiraNastroLookAndFeel : public juce::LookAndFeel_V4
 public:
     // MD3 Light Scheme tokens
     static const juce::Colour md3Background;           // #FBF8FF
-    static const juce::Colour md3CardFilled;           // #E3E1E9 (surfaceContainerHighest)
+    static const juce::Colour md3CardFilled;           // #F4F2FA (surfaceContainerLow)
     static const juce::Colour md3Primary;              // #4E5B92
     static const juce::Colour md3OnSurfaceVariant;     // #45464F
     static const juce::Colour md3SecondaryContainer;   // #DEE1F9
     static const juce::Colour md3OnSecondaryContainer; // #424659
     static const juce::Colour md3SurfaceVariant;       // #E2E1EC
-    static const juce::Colour md3NavBar;               // #1E40AF (core seed)
+    static const juce::Colour md3NavBar;               // #3755C3 (Primary 40)
     static const juce::Colour md3OnNavBar;             // #FFFFFF
 
     // MD3 Dark Scheme tokens (foundation for future dark mode)
     static const juce::Colour md3BackgroundDark;            // #121318
-    static const juce::Colour md3CardFilledDark;            // #34343A
+    static const juce::Colour md3CardFilledDark;            // #1A1B21 (surfaceContainerLow)
     static const juce::Colour md3PrimaryDark;               // #B8C4FF
     static const juce::Colour md3OnSurfaceVariantDark;      // #C6C5D0
     static const juce::Colour md3SecondaryContainerDark;    // #424659
