@@ -1,0 +1,92 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "base-ninja",
+      "hidden": true,
+      "inherits": "base",
+      "generator": "Ninja"
+    },
+    {
+      "name": "relwithdebinfo",
+      "displayName": "RelWithDebInfo — Ninja (primary dev build)",
+      "inherits": "base-ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug — Ninja",
+      "inherits": "base-ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release — Ninja",
+      "inherits": "base-ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "relwithdebinfo-makefiles",
+      "displayName": "RelWithDebInfo — Unix Makefiles (macOS/Linux, no Ninja required)",
+      "inherits": "base",
+      "generator": "Unix Makefiles",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "relwithdebinfo",
+      "displayName": "Build all — RelWithDebInfo",
+      "configurePreset": "relwithdebinfo"
+    },
+    {
+      "name": "debug",
+      "displayName": "Build all — Debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "release",
+      "displayName": "Build all — Release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "standalone",
+      "displayName": "Build Standalone app",
+      "configurePreset": "relwithdebinfo",
+      "targets": ["KiraNastro_Standalone"]
+    },
+    {
+      "name": "vst3",
+      "displayName": "Build VST3",
+      "configurePreset": "relwithdebinfo",
+      "targets": ["KiraNastro_VST3"]
+    },
+    {
+      "name": "au",
+      "displayName": "Build AU (macOS only)",
+      "configurePreset": "relwithdebinfo",
+      "targets": ["KiraNastro_AU"]
+    }
+  ]
+}
