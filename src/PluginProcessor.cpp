@@ -246,6 +246,22 @@ KiraNastroProcessor::getCurrentEntryInfo() const {
   return info;
 }
 
+KiraNastroProcessor::EntryInfo
+KiraNastroProcessor::getNextEntryInfo() const {
+  juce::ScopedLock sl(dataLock);
+  EntryInfo info;
+  info.index = currentEntryIndex.load() + 1;
+  info.total = totalEntries.load();
+
+  if (reclistData.has_value() && info.index >= 0 &&
+      static_cast<size_t>(info.index) < reclistData->entries.size()) {
+    info.name = reclistData->entries[static_cast<size_t>(info.index)];
+    if (reclistData->comments.count(info.name))
+      info.comment = reclistData->comments.at(info.name);
+  }
+  return info;
+}
+
 std::optional<GuideBGMData> KiraNastroProcessor::getGuideBGMData() const {
   juce::ScopedLock sl(dataLock);
   return bgmData;

@@ -20,6 +20,14 @@ juce_add_binary_data(KiraNastroFonts
         resources/fonts/Lexend-Bold.ttf
 )
 
+# Embed branding images as binary data
+juce_add_binary_data(KiraNastroImages
+    HEADER_NAME "BinaryDataImages.h"
+    NAMESPACE   "BinaryDataImages"
+    SOURCES
+        resources/branding/icon.svg
+)
+
 # Plugin target
 juce_add_plugin(KiraNastro
     VERSION                     0.1.0
@@ -85,6 +93,7 @@ target_include_directories(KiraNastro
 target_link_libraries(KiraNastro
     PRIVATE
         KiraNastroFonts
+        KiraNastroImages
         juce::juce_audio_utils
         juce::juce_audio_formats
         juce::juce_gui_extra

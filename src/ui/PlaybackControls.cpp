@@ -31,7 +31,6 @@ PlaybackControls::PlaybackControls(KiraNastroProcessor &processor)
 
   // Set the component's size last to avoid calling resized() before buttons are
   // ready
-  setSize(800, 80);
 }
 
 void PlaybackControls::paint(juce::Graphics &g) {
@@ -45,7 +44,7 @@ void PlaybackControls::resized() {
 
   const int buttonWidth = 120;
   const int buttonHeight = 40;
-  const int spacing = 10;
+  const int spacing = 16;
   const int totalWidth = (buttonWidth * 3) + (spacing * 2);
 
   int x = (getWidth() - totalWidth) / 2;

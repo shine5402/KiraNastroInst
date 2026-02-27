@@ -26,19 +26,24 @@ KiraNastro VSTi handles steps 1-3 inside a DAW. Step 4 is handled by the compani
 ## Build Commands
 
 ```bash
-# Configure (after JUCE submodule is set up)
-cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+# Configure
+cmake --preset debug
 
 # Build
-cmake --build build --config RelWithDebInfo
+cmake --build --preset debug
 
 # Build specific format
-cmake --build build --target KiraNastro_VST3
-cmake --build build --target KiraNastro_AU
-cmake --build build --target KiraNastro_Standalone
+cmake --build --preset debug --target KiraNastro_VST3
+cmake --build --preset debug --target KiraNastro_AU
+cmake --build --preset debug --target KiraNastro_Standalone
 ```
 
-There are no tests yet. No linter is configured.
+## Test Commands
+
+```bash
+# Run tests
+ctest --preset debug
+```
 
 ## Architecture
 

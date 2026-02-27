@@ -1,4 +1,7 @@
 #include "PluginEditor.h"
+#include "BinaryDataImages.h"
+#include "utils/Fonts.h"
+#include "utils/Icons.h"
 #include <cmath>
 
 #ifdef JUCE_STANDALONE_APPLICATION
@@ -9,29 +12,31 @@ KiraNastroEditor::KiraNastroEditor(KiraNastroProcessor &p)
     : AudioProcessorEditor(&p), audioProcessor(p) {
   setLookAndFeel(&lookAndFeel);
 
-  // Create configuration UI
-  loadReclistButton = std::make_unique<juce::TextButton>("Load Reclist");
-  loadBGMButton = std::make_unique<juce::TextButton>("Load BGM");
+  // Load brand logo from embedded SVG
+  if (auto xml = juce::XmlDocument::parse(juce::String::fromUTF8(
+          BinaryDataImages::icon_svg, (int)BinaryDataImages::icon_svgSize))) {
+    logoDrawable = juce::Drawable::createFromSVG(*xml);
+  }
 
-  addAndMakeVisible(loadReclistButton.get());
-  addAndMakeVisible(loadBGMButton.get());
+  // Chip icons tinted onSecondaryContainer
+  nextIcon     = Icons::load(Icons::arrowRightSvg,
+                              KiraNastroLookAndFeel::md3OnSecondaryContainer);
+  progressIcon = Icons::load(Icons::percentSvg,
+                              KiraNastroLookAndFeel::md3OnSecondaryContainer);
 
-  DBG("Adding listeners to buttons");
-  loadReclistButton->addListener(this);
-  loadBGMButton->addListener(this);
-  DBG("Listeners added successfully");
+  // Hamburger menu button (Material Symbols, white for nav bar)
+  auto menuIcon = Icons::load(Icons::menuSvg, juce::Colours::white);
+  menuButton = std::make_unique<juce::DrawableButton>(
+      "menu", juce::DrawableButton::ImageFitted);
+  menuButton->setImages(menuIcon.get());
+  menuButton->onClick = [this] { showMenu(); };
+  addAndMakeVisible(menuButton.get());
 
-  loadReclistButton->setColour(juce::TextButton::buttonColourId,
-                               juce::Colour(0xFF1A3FC7));
-  loadReclistButton->setColour(juce::TextButton::textColourOnId,
-                               juce::Colours::white);
+  // Timing indicator (always present)
+  timingIndicator = std::make_unique<TimingIndicator>();
+  addAndMakeVisible(timingIndicator.get());
 
-  loadBGMButton->setColour(juce::TextButton::buttonColourId,
-                           juce::Colour(0xFF1A3FC7));
-  loadBGMButton->setColour(juce::TextButton::textColourOnId,
-                           juce::Colours::white);
-
-// Create standalone-specific controls
+// Standalone-specific controls
 #ifdef JUCE_STANDALONE_APPLICATION
   playbackControls = std::make_unique<PlaybackControls>(audioProcessor);
   addAndMakeVisible(playbackControls.get());
@@ -39,19 +44,16 @@ KiraNastroEditor::KiraNastroEditor(KiraNastroProcessor &p)
   progressSlider = std::make_unique<juce::Slider>();
   addAndMakeVisible(progressSlider.get());
   progressSlider->addListener(this);
-  progressSlider->setRange(0.0, 600.0, 0.1); // Default 10 minutes max
+  progressSlider->setRange(0.0, 600.0, 0.1);
   progressSlider->setSliderStyle(juce::Slider::LinearHorizontal);
   progressSlider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 100, 20);
   progressSlider->setTextValueSuffix(" s");
-
-  timingIndicator = std::make_unique<TimingIndicator>();
-  addAndMakeVisible(timingIndicator.get());
 #endif
 
 #ifdef JUCE_STANDALONE_APPLICATION
-  setSize(800, 480);
+  setSize(800, 360);
 #else
-  setSize(800, 240);
+  setSize(800, 232);
 #endif
   startTimerHz(30);
 }
@@ -63,98 +65,208 @@ KiraNastroEditor::~KiraNastroEditor() {
 
 //==============================================================================
 void KiraNastroEditor::paint(juce::Graphics &g) {
-  g.fillAll(juce::Colour(0xFFF5F7FB));
+  // 1. Background
+  g.fillAll(KiraNastroLookAndFeel::md3Background);
 
-  // Main Card Area
-  auto area = getLocalBounds().reduced(20);
-  area.removeFromTop(50); // Space for header row
+  // 2. Card (MD3 Filled Card — no shadow)
+  g.setColour(KiraNastroLookAndFeel::md3CardFilled);
+  g.fillRoundedRectangle(juce::Rectangle<float>(16.0f, 8.0f, 768.0f, 128.0f), 16.0f);
 
-#ifdef JUCE_STANDALONE_APPLICATION
-  area.removeFromBottom(100); // More space for controls and entry indicator
-#endif
-
-  auto cardArea = area.removeFromTop(140);
-
-  g.setColour(juce::Colours::white);
-  g.fillRoundedRectangle(cardArea.toFloat(), 12.0f);
-
-  g.setColour(juce::Colour(0xFF1A3FC7).withAlpha(0.1f));
-  g.drawRoundedRectangle(cardArea.toFloat(), 12.0f, 2.0f);
-
-  // Text in card
-  auto textArea = cardArea.reduced(20);
-  textArea.removeFromRight(100); // Space for TimingIndicator
-
-  // Comment (Romaji)
-  g.setColour(juce::Colours::grey);
-  g.setFont(20.0f);
-  g.drawFittedText(currentEntryComment, textArea.removeFromTop(30),
+  // 3. Comment text (Sarasa 16pt, onSurfaceVariant)
+  g.setColour(KiraNastroLookAndFeel::md3OnSurfaceVariant);
+  g.setFont(juce::Font(juce::FontOptions()
+                           .withTypeface(Fonts::getSarasaRegular())
+                           .withHeight(16.0f)));
+  g.drawFittedText(currentEntryComment,
+                   juce::Rectangle<int>(48, 28, 668, 20),
                    juce::Justification::left, 1);
 
-  // Entry Name (Large Japanese)
-  g.setColour(juce::Colour(0xFF1A3FC7));
-  g.setFont(48.0f);
-  g.drawFittedText(currentEntryName, textArea, juce::Justification::left, 1);
+  // 4. Entry text (Sarasa 48pt, primary)
+  g.setColour(KiraNastroLookAndFeel::md3Primary);
+  g.setFont(juce::Font(juce::FontOptions()
+                           .withTypeface(Fonts::getSarasaRegular())
+                           .withHeight(48.0f)));
+  g.drawFittedText(currentEntryName,
+                   juce::Rectangle<int>(48, 56, 668, 60),
+                   juce::Justification::left, 1);
+
+  // 5. Info row chips
+  {
+    const juce::Font chipFont(juce::FontOptions()
+                                  .withTypeface(Fonts::getSarasaRegular())
+                                  .withHeight(16.0f));
+    g.setFont(chipFont);
+    const float chipH        = 32.0f;
+    const float chipY        = 144.0f;
+    const float iconSize     = 14.0f;
+    const float padH         = 16.0f;
+    const float iconTextGap  = 8.0f;
+
+    // Helper: measure text width via GlyphArrangement (avoids deprecated getStringWidth)
+    auto measureText = [](const juce::Font& font, const juce::String& text) -> float {
+      juce::GlyphArrangement ga;
+      ga.addLineOfText(font, text, 0.0f, 0.0f);
+      return ga.getBoundingBox(0, -1, true).getWidth();
+    };
+
+    // a. Next Entry chip (left)
+    {
+      const float textW = measureText(chipFont, nextEntryName);
+      const float chipW = padH + iconSize + iconTextGap + textW + padH;
+      const juce::Rectangle<float> chipRect(16.0f, chipY, chipW, chipH);
+
+      g.setColour(KiraNastroLookAndFeel::md3SecondaryContainer);
+      g.fillRoundedRectangle(chipRect, 16.0f);
+
+      if (nextIcon) {
+        nextIcon->drawWithin(
+            g,
+            juce::Rectangle<float>(16.0f + padH,
+                                   chipY + (chipH - iconSize) / 2.0f,
+                                   iconSize, iconSize),
+            juce::RectanglePlacement::centred, 1.0f);
+      }
+
+      g.setColour(KiraNastroLookAndFeel::md3OnSecondaryContainer);
+      g.drawText(nextEntryName,
+                 juce::Rectangle<float>(16.0f + padH + iconSize + iconTextGap,
+                                        chipY, textW + 2.0f, chipH)
+                     .toNearestInt(),
+                 juce::Justification::centredLeft, false);
+    }
+
+    // b. Progress chip (right-aligned)
+    {
+      const int current = lastEntryIndex + 1;
+      const int total   = audioProcessor.totalEntries.load();
+      const juce::String progressStr =
+          juce::String(current) + " / " + juce::String(total);
+      const float textW = measureText(chipFont, progressStr);
+      const float chipW = padH + iconSize + iconTextGap + textW + padH;
+      const float chipX = 784.0f - chipW;
+      const juce::Rectangle<float> chipRect(chipX, chipY, chipW, chipH);
+
+      g.setColour(KiraNastroLookAndFeel::md3SecondaryContainer);
+      g.fillRoundedRectangle(chipRect, 16.0f);
+
+      if (progressIcon) {
+        progressIcon->drawWithin(
+            g,
+            juce::Rectangle<float>(chipX + padH,
+                                   chipY + (chipH - iconSize) / 2.0f,
+                                   iconSize, iconSize),
+            juce::RectanglePlacement::centred, 1.0f);
+      }
+
+      g.setColour(KiraNastroLookAndFeel::md3OnSecondaryContainer);
+      g.drawText(progressStr,
+                 juce::Rectangle<float>(chipX + padH + iconSize + iconTextGap,
+                                        chipY, textW + 2.0f, chipH)
+                     .toNearestInt(),
+                 juce::Justification::centredLeft, false);
+    }
+  }
+
+  // 6. Nav bar
+  {
+    const float navBarY = 192.0f;
+    const float navBarH = 40.0f;
+    g.setColour(KiraNastroLookAndFeel::md3NavBar);
+    g.fillRect(0.0f, navBarY, 800.0f, navBarH);
+
+    // Font setup
+    const auto navFont = juce::Font(juce::FontOptions()
+                                        .withTypeface(Fonts::getLexendRegular())
+                                        .withPointHeight(14.0f));
+    const juce::String brandText = "KiraNastro VSTi";
+    
+    // Measure text via GlyphArrangement to get accurate pixel height/width
+    juce::GlyphArrangement ga;
+    ga.addLineOfText(navFont, brandText, 0.0f, 0.0f);
+    const auto textBounds = ga.getBoundingBox(0, -1, true);
+    const float textW = textBounds.getWidth();
+    const float textH = textBounds.getHeight();
+
+    const float logoSize = 24.0f;
+    const float spacing  = 2.0f;
+    const float totalW   = logoSize + spacing + textW;
+    
+    // Starting X to keep them grouped (starting from X=10)
+    float currentX = 10.0f;
+
+    // Logo icon (vertically centred in 40px bar)
+    if (logoDrawable) {
+      logoDrawable->drawWithin(
+          g,
+          juce::Rectangle<float>(currentX, navBarY + (navBarH - logoSize) / 2.0f,
+                                 logoSize, logoSize),
+          juce::RectanglePlacement::centred, 1.0f);
+    }
+
+    currentX += logoSize + spacing;
+
+    // "KiraNastro VSTi" vertically centred relative to nav bar
+    g.setColour(juce::Colours::white);
+    g.setFont(navFont);
+    g.drawText(brandText,
+               juce::Rectangle<float>(currentX, navBarY, textW + 2.0f, navBarH)
+                   .toNearestInt(),
+               juce::Justification::centredLeft, false);
+  }
 
 #ifdef JUCE_STANDALONE_APPLICATION
-  // Total progress indicator at bottom
-  const int total = audioProcessor.totalEntries.load();
-  g.setFont(16.0f);
-  g.setColour(juce::Colours::darkgrey);
-  g.drawFittedText("Entry: " + juce::String(lastEntryIndex + 1) + " / " +
-                       juce::String(total),
-                   getLocalBounds().withTrimmedBottom(100).removeFromBottom(20),
-                   juce::Justification::centredBottom, 1);
+  // 7. Debug area background (y=232)
+  g.setColour(juce::Colour(0xFFDBEAFE));
+  g.fillRect(0, 232, 800, getHeight() - 232);
 #endif
 }
 
 void KiraNastroEditor::resized() {
-  // Configuration buttons in a dedicated header row
-  loadReclistButton->setBounds(20, 20, 150, 40);
-  loadBGMButton->setBounds(180, 20, 150, 40);
+  // TimingIndicator: bottom-right inside card padding
+  timingIndicator->setBounds(720, 84, 32, 32);
+
+  // Hamburger menu button: 24x24 (same as nav bar logo), right-aligned, vertically centred
+  // Nav bar: y=192, h=40 → icon y = 192 + (40-24)/2 = 200; x = 800 - 8(pad) - 24 = 768
+  menuButton->setBounds(768, 200, 24, 24);
 
 #ifdef JUCE_STANDALONE_APPLICATION
-  auto area = getLocalBounds().reduced(20);
-  area.removeFromTop(50); // Skip header row
-  auto cardArea = area.removeFromTop(140);
-
-  if (timingIndicator)
-    timingIndicator->setBounds(cardArea.removeFromRight(100).reduced(10));
-
-  // Progress slider
-  progressSlider->setBounds(20, 240, getWidth() - 40, 40);
+  progressSlider->setBounds(20, 242, getWidth() - 40, 32);
   progressSlider->setColour(juce::Slider::textBoxTextColourId,
-                            juce::Colour(0xFF1A3FC7));
+                            KiraNastroLookAndFeel::md3Primary);
 
-  // Playback controls at the very bottom
-  playbackControls->setBounds(0, getHeight() - 80, getWidth(), 80);
+  playbackControls->setBounds(0, 278, getWidth(), 64);
 #endif
 }
 
 //==============================================================================
 void KiraNastroEditor::timerCallback() {
   auto info = audioProcessor.getCurrentEntryInfo();
-  if (info.index != lastEntryIndex || info.name != currentEntryName) {
-    lastEntryIndex = info.index;
-    currentEntryName = info.name;
+  bool changed =
+      (info.index != lastEntryIndex || info.name != currentEntryName);
+
+  if (changed) {
+    lastEntryIndex    = info.index;
+    currentEntryName  = info.name;
     currentEntryComment = info.comment;
+
+    auto nextInfo   = audioProcessor.getNextEntryInfo();
+    nextEntryName   = nextInfo.name;
+    nextEntryComment = nextInfo.comment;
+
     repaint();
   }
 
+  timingIndicator->setProgress(
+      audioProcessor.bgmLoopProgress.load(std::memory_order_relaxed));
+
 #ifdef JUCE_STANDALONE_APPLICATION
-  if (timingIndicator) {
-    timingIndicator->setProgress(
-        audioProcessor.bgmLoopProgress.load(std::memory_order_relaxed));
-  }
-  // Update progress slider based on project playback position
   if (progressSlider && audioProcessor.isBGMLoaded()) {
     const double currentPos = audioProcessor.projectPlayPositionSeconds.load();
     progressSlider->setValue(currentPos, juce::dontSendNotification);
 
-    // Update slider range to be 10x BGM length as per design intent
-    const double bgmLength = audioProcessor.getBGMLengthSeconds();
+    const double bgmLength    = audioProcessor.getBGMLengthSeconds();
     const double projectLength = bgmLength * 10.0;
-    const double currentMax = progressSlider->getMaximum();
+    const double currentMax   = progressSlider->getMaximum();
     if (bgmLength > 0 && std::abs(currentMax - projectLength) > 0.1) {
       progressSlider->setRange(0.0, projectLength, 0.1);
     }
@@ -162,56 +274,50 @@ void KiraNastroEditor::timerCallback() {
 #endif
 }
 
-void KiraNastroEditor::buttonClicked(juce::Button *button) {
-  if (button == loadReclistButton.get()) {
-    DBG("Load Reclist button clicked");
-    // Open file chooser for reclist files
-    reclistChooser = std::make_unique<juce::FileChooser>("Select Reclist File",
-                                                         juce::File(), "*.txt");
-    reclistChooser->launchAsync(juce::FileBrowserComponent::openMode |
-                                    juce::FileBrowserComponent::canSelectFiles,
-                                [this](const juce::FileChooser &f) {
-                                  auto result = f.getResult();
-                                  DBG("Reclist file chosen: " +
-                                      result.getFullPathName());
-                                  if (result.exists()) {
-                                    DBG("Reclist file exists, loading...");
-                                    audioProcessor.loadReclist(result);
-                                  } else {
-                                    DBG("Reclist file does not exist");
-                                  }
-                                  // Release the chooser after use
-                                  reclistChooser.reset();
-                                });
-  } else if (button == loadBGMButton.get()) {
-    DBG("Load BGM button clicked");
-    // Open file chooser for BGM files
-    bgmChooser = std::make_unique<juce::FileChooser>("Select BGM File",
-                                                     juce::File(), "*.wav");
-    bgmChooser->launchAsync(juce::FileBrowserComponent::openMode |
-                                juce::FileBrowserComponent::canSelectFiles,
-                            [this](const juce::FileChooser &f) {
-                              auto result = f.getResult();
-                              DBG("BGM file chosen: " +
-                                  result.getFullPathName());
-                              if (result.exists()) {
-                                DBG("BGM file exists, loading...");
-                                audioProcessor.loadGuideBGM(result);
-                              } else {
-                                DBG("BGM file does not exist");
-                              }
-                              // Release the chooser after use
-                              bgmChooser.reset();
-                            });
-  }
-}
-
 void KiraNastroEditor::sliderValueChanged(juce::Slider *slider) {
 #ifdef JUCE_STANDALONE_APPLICATION
   if (slider == progressSlider.get()) {
-    // Set BGM playback position based on slider value
-    const double newPos = slider->getValue();
-    audioProcessor.seekBGM(newPos);
+    audioProcessor.seekBGM(slider->getValue());
   }
+#else
+  juce::ignoreUnused(slider);
 #endif
+}
+
+void KiraNastroEditor::showMenu() {
+  juce::PopupMenu menu;
+  menu.addItem(1, "Load Reclist...");
+  menu.addItem(2, "Load BGM...");
+
+  menu.showMenuAsync(juce::PopupMenu::Options()
+                         .withTargetComponent(menuButton.get())
+                         .withMinimumWidth(200)
+                         .withMaximumNumColumns(1),
+                     [this](int result) {
+                       if (result == 1) {
+                         reclistChooser = std::make_unique<juce::FileChooser>(
+                             "Select Reclist File", juce::File(), "*.txt");
+                         reclistChooser->launchAsync(
+                             juce::FileBrowserComponent::openMode |
+                                 juce::FileBrowserComponent::canSelectFiles,
+                             [this](const juce::FileChooser &f) {
+                               auto file = f.getResult();
+                               if (file.exists())
+                                 audioProcessor.loadReclist(file);
+                               reclistChooser.reset();
+                             });
+                       } else if (result == 2) {
+                         bgmChooser = std::make_unique<juce::FileChooser>(
+                             "Select BGM File", juce::File(), "*.wav");
+                         bgmChooser->launchAsync(
+                             juce::FileBrowserComponent::openMode |
+                                 juce::FileBrowserComponent::canSelectFiles,
+                             [this](const juce::FileChooser &f) {
+                               auto file = f.getResult();
+                               if (file.exists())
+                                 audioProcessor.loadGuideBGM(file);
+                               bgmChooser.reset();
+                             });
+                       }
+                     });
 }

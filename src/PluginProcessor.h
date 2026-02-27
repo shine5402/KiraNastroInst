@@ -62,6 +62,7 @@ public:
     int total;
   };
   EntryInfo getCurrentEntryInfo() const;
+  EntryInfo getNextEntryInfo() const;
 
   // BGM control methods (for standalone)
   void startBGM();
