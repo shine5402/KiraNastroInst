@@ -25,6 +25,10 @@ bool BGMPlayer::loadFile(const juce::File &wavFile) {
   loadedSampleRate = static_cast<int>(reader->sampleRate);
   loaded = true;
 
+  // Recompute playback ratio in case prepareToPlay was called before loading
+  if (hostSampleRate > 0.0 && loadedSampleRate > 0)
+    playbackRatio = static_cast<double>(loadedSampleRate) / hostSampleRate;
+
   return true;
 }
 

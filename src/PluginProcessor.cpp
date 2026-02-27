@@ -37,138 +37,88 @@ void KiraNastroProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   if (!bgmPlayer.isLoaded() || !isBGMPlayingFlag)
     return;
 
-  // --- Timing scheduler logic ---
-  // We process the buffer in slices to handle timing nodes (especially loops)
-  // seamlessly within a single block.
+  // --- Simple block-loop playback ---
+  // The BGM "block" is defined by [bgmBlockStartMs, bgmBlockEndMs).
+  // We render audio within this range. When playback reaches blockEnd,
+  // we seek back to blockStart and advance the reclist entry.
 
-  std::vector<TimingNode> nodes;
-  {
-    juce::ScopedLock sl(dataLock);
-    if (bgmData.has_value())
-      nodes = bgmData->nodes;
-  }
-  if (nodes.empty())
+  const double blockStartMs = bgmBlockStartMs;
+  const double blockEndMs   = bgmBlockEndMs;
+
+  if (blockEndMs <= blockStartMs)
+    return; // invalid bounds — nothing to play
+
+  // BGMPlayer positions are in file-sample units, so convert ms using the
+  // file's sample rate, NOT the host sample rate.
+  const double fileSampleRate = static_cast<double>(bgmPlayer.getSampleRate());
+  if (fileSampleRate <= 0.0)
     return;
+
+  const int64_t blockStartSamples =
+      static_cast<int64_t>((blockStartMs / 1000.0) * fileSampleRate);
+  const int64_t blockEndSamples =
+      static_cast<int64_t>((blockEndMs / 1000.0) * fileSampleRate);
 
   const int numSamplesInBlock = buffer.getNumSamples();
   int samplesRendered = 0;
-  const int numNodes = static_cast<int>(nodes.size());
 
   while (samplesRendered < numSamplesInBlock) {
-    const int64_t currentBgmSamples = bgmPlayer.getCurrentPositionSamples();
-    const double currentBgmPosMs =
-        (static_cast<double>(currentBgmSamples) / currentSampleRate) * 1000.0;
+    const int64_t currentPos = bgmPlayer.getCurrentPositionSamples();
 
-    // Determine how many samples to render in this slice
-    int samplesToRenderInSlice = numSamplesInBlock - samplesRendered;
-
-    // Check if we will cross any nodes in this slice
-    bool nodeTriggered = false;
-    if (currentNodeIndex < numNodes) {
-      const auto &node = nodes[currentNodeIndex];
-      const double samplesToReachNode =
-          ((node.timeMs - currentBgmPosMs) / 1000.0) * currentSampleRate;
-
-      if (samplesToReachNode <= 0.0) {
-        // We are already at or past this node
-        nodeTriggered = true;
-        samplesToRenderInSlice = 0;
-      } else if (samplesToReachNode <
-                 static_cast<double>(samplesToRenderInSlice)) {
-        // We will hit this node within the current slice. Ceil ensures we
-        // render at least 1 sample to push us over the threshold.
-        samplesToRenderInSlice =
-            static_cast<int>(std::ceil(samplesToReachNode));
-        if (samplesToRenderInSlice < 0)
-          samplesToRenderInSlice = 0;
+    // If we're already at or past the block end, loop back
+    if (currentPos >= blockEndSamples) {
+      // Advance reclist entry
+      const int current = currentEntryIndex.load();
+      const int total = totalEntries.load();
+      if (current < total - 1) {
+        currentEntryIndex.store(current + 1);
+      } else {
+        // End of reclist — stop playback
+        bgmPlayer.stop();
+        isBGMPlayingFlag = false;
+        return;
       }
+
+      bgmPlayer.seekToSample(blockStartSamples);
+      continue; // re-evaluate position from the top
     }
 
-    // Render the slice
-    if (samplesToRenderInSlice > 0) {
-      bgmPlayer.renderNextBlock(buffer, samplesRendered,
-                                samplesToRenderInSlice);
-      samplesRendered += samplesToRenderInSlice;
+    // How many host samples remain until the block boundary?
+    // samplesUntilEnd is in file-sample space; convert to host samples.
+    const int64_t fileSamplesUntilEnd = blockEndSamples - currentPos;
+    const double playbackRatio = fileSampleRate / currentSampleRate;
+    const int64_t hostSamplesUntilEnd =
+        static_cast<int64_t>(std::ceil(
+            static_cast<double>(fileSamplesUntilEnd) / playbackRatio));
+    const int remaining = numSamplesInBlock - samplesRendered;
+    const int samplesToRender =
+        static_cast<int>(std::min(static_cast<int64_t>(remaining),
+                                  hostSamplesUntilEnd));
 
-      // Update project position
-      projectPlayPositionSeconds.store(
-          projectPlayPositionSeconds.load(std::memory_order_relaxed) +
-              static_cast<double>(samplesToRenderInSlice) / currentSampleRate,
-          std::memory_order_relaxed);
-    }
+    if (samplesToRender <= 0)
+      break; // safety
 
-    // Process nodes that were reached
-    if (currentNodeIndex < numNodes) {
-      const auto currentBgmSamplesAfter = bgmPlayer.getCurrentPositionSamples();
-      const double currentBgmMsAfter =
-          (static_cast<double>(currentBgmSamplesAfter) / currentSampleRate) *
-          1000.0;
+    bgmPlayer.renderNextBlock(buffer, samplesRendered, samplesToRender);
+    samplesRendered += samplesToRender;
 
-      // Use a small epsilon to catch nodes exactly at the boundary
-      while (currentNodeIndex < numNodes &&
-             currentBgmMsAfter >= nodes[currentNodeIndex].timeMs - 0.001) {
-        const auto &node = nodes[currentNodeIndex];
-
-        // Entry switching (advance reclist)
-        if (node.isSwitching) {
-          const int current = currentEntryIndex.load();
-          const int total = totalEntries.load();
-          if (current < total - 1) {
-            currentEntryIndex.store(current + 1);
-          } else {
-            // End of reclist — stop
-            bgmPlayer.stop();
-            isBGMPlayingFlag = false;
-            return;
-          }
-        }
-
-        // Repeat / loop: seek BGM back
-        if (node.repeatTargetNodeIndex >= 0 &&
-            node.repeatTargetNodeIndex < numNodes) {
-          const double targetTimeMs = nodes[node.repeatTargetNodeIndex].timeMs;
-          const int64_t targetSamples =
-              static_cast<int64_t>((targetTimeMs / 1000.0) * currentSampleRate);
-
-          bgmPlayer.seekToSample(targetSamples);
-          currentNodeIndex = node.repeatTargetNodeIndex;
-          // After a loop, we re-evaluate from the new position in the next
-          // slice of the SAME block.
-          break;
-        }
-
-        ++currentNodeIndex;
-      }
-    }
-
-    // Safety: if we didn't render anything and didn't trigger any nodes,
-    // we must advance to avoid an infinite loop.
-    if (samplesToRenderInSlice == 0 && !nodeTriggered) {
-      break;
-    }
-
-    // If we exhausted all nodes without a repeat loop, stop at the very end
-    if (currentNodeIndex >= numNodes && samplesRendered < numSamplesInBlock) {
-      // Just fill the rest with silence (already cleared)
-      break;
-    }
+    // Update project position
+    projectPlayPositionSeconds.store(
+        projectPlayPositionSeconds.load(std::memory_order_relaxed) +
+            static_cast<double>(samplesToRender) / currentSampleRate,
+        std::memory_order_relaxed);
   }
 
-  // Update loop progress for UI (once per block is fine)
-  if (numNodes >= 2) {
+  // Update loop progress for UI
+  const double cycleDuration = blockEndMs - blockStartMs;
+  if (cycleDuration > 0.0) {
     const double curMs =
         (static_cast<double>(bgmPlayer.getCurrentPositionSamples()) /
-         currentSampleRate) *
+         fileSampleRate) *
         1000.0;
-    const double cycleStartTime = nodes.front().timeMs;
-    const double cycleEndTime = nodes.back().timeMs;
-    const double cycleDuration = cycleEndTime - cycleStartTime;
-    if (cycleDuration > 0.0) {
-      float progress =
-          static_cast<float>((curMs - cycleStartTime) / cycleDuration);
-      bgmLoopProgress.store(std::clamp(progress, 0.0f, 1.0f),
-                            std::memory_order_relaxed);
-    }
+    float progress =
+        static_cast<float>((curMs - blockStartMs) / cycleDuration);
+    bgmLoopProgress.store(std::clamp(progress, 0.0f, 1.0f),
+                          std::memory_order_relaxed);
   }
 }
 
@@ -214,12 +164,38 @@ bool KiraNastroProcessor::loadGuideBGM(const juce::File &wavFile) {
   {
     juce::ScopedLock sl(dataLock);
     bgmData = timingResult;
-    currentNodeIndex = 0;
   }
 
-  // Seek immediately to the start of the loop cycle to bypass any intro
-  if (wavOk) {
-    seekBGM(0.0);
+  // Compute BGM block boundaries from timing nodes.
+  // Block start = first node's time.
+  // Block end   = time of the node that has a repeatTargetNodeIndex set.
+  bgmBlockStartMs = 0.0;
+  bgmBlockEndMs = 0.0;
+
+  if (timingResult.has_value() && !timingResult->nodes.empty()) {
+    bgmBlockStartMs = timingResult->nodes.front().timeMs;
+
+    // Find the node with repeatTargetNodeIndex >= 0 (typically the last node)
+    for (auto it = timingResult->nodes.rbegin();
+         it != timingResult->nodes.rend(); ++it) {
+      if (it->repeatTargetNodeIndex >= 0) {
+        bgmBlockEndMs = it->timeMs;
+        break;
+      }
+    }
+
+    // Fallback: if no repeat node found, use the last node's time
+    if (bgmBlockEndMs <= bgmBlockStartMs) {
+      bgmBlockEndMs = timingResult->nodes.back().timeMs;
+    }
+  }
+
+  // Seek to block start so playback begins at the right position
+  if (wavOk && bgmBlockEndMs > bgmBlockStartMs) {
+    const double fileSR = static_cast<double>(bgmPlayer.getSampleRate());
+    const int64_t startSamples =
+        static_cast<int64_t>((bgmBlockStartMs / 1000.0) * fileSR);
+    bgmPlayer.seekToSample(startSamples);
   }
 
   return wavOk;
@@ -270,7 +246,13 @@ std::optional<GuideBGMData> KiraNastroProcessor::getGuideBGMData() const {
 bool KiraNastroProcessor::isBGMLoaded() const { return bgmPlayer.isLoaded(); }
 
 void KiraNastroProcessor::startBGM() {
-  // Just start playing from current position
+  // Seek to block start before playing so the loop is correct
+  if (bgmBlockEndMs > bgmBlockStartMs) {
+    const double fileSR = static_cast<double>(bgmPlayer.getSampleRate());
+    const int64_t startSamples =
+        static_cast<int64_t>((bgmBlockStartMs / 1000.0) * fileSR);
+    bgmPlayer.seekToSample(startSamples);
+  }
   bgmPlayer.play();
   isBGMPlayingFlag = true;
 }
@@ -286,22 +268,8 @@ void KiraNastroProcessor::stopBGM() {
 bool KiraNastroProcessor::isBGMPlaying() const { return isBGMPlayingFlag; }
 
 double KiraNastroProcessor::getBGMLengthSeconds() const {
-  if (bgmPlayer.isLoaded()) {
-    double loopStartMs = 0.0;
-    double loopEndMs = static_cast<double>(bgmPlayer.getTotalSamples()) /
-                       bgmPlayer.getSampleRate() * 1000.0;
-
-    {
-      juce::ScopedLock sl(dataLock);
-      if (bgmData.has_value() && !bgmData->nodes.empty()) {
-        loopEndMs = bgmData->nodes.back().timeMs;
-        int targetIdx = bgmData->nodes.back().repeatTargetNodeIndex;
-        if (targetIdx >= 0 && targetIdx < (int)bgmData->nodes.size()) {
-          loopStartMs = bgmData->nodes[targetIdx].timeMs;
-        }
-      }
-    }
-    return (loopEndMs - loopStartMs) / 1000.0;
+  if (bgmPlayer.isLoaded() && bgmBlockEndMs > bgmBlockStartMs) {
+    return (bgmBlockEndMs - bgmBlockStartMs) / 1000.0;
   }
   return 0.0;
 }
@@ -310,63 +278,28 @@ void KiraNastroProcessor::seekBGM(double seconds) {
   if (!bgmPlayer.isLoaded())
     return;
 
-  // Identify loop segment from nodes
-  double loopStartTimeMs = 0.0;
-  double loopEndTimeMs = getBGMLengthSeconds() * 1000.0;
-  double loopDurationMs = loopEndTimeMs;
+  const double blockDurationMs = bgmBlockEndMs - bgmBlockStartMs;
+  if (blockDurationMs <= 0.0)
+    return;
 
-  {
-    juce::ScopedLock sl(dataLock);
-    if (bgmData.has_value() && !bgmData->nodes.empty()) {
-      // Find the first node that is a repeat target, or just use front/back
-      loopEndTimeMs = bgmData->nodes.back().timeMs;
+  double sessionMs = std::max(seconds * 1000.0, 0.0);
 
-      // If the last node repeats to something, use that as start
-      int targetIdx = bgmData->nodes.back().repeatTargetNodeIndex;
-      if (targetIdx >= 0 && targetIdx < (int)bgmData->nodes.size()) {
-        loopStartTimeMs = bgmData->nodes[targetIdx].timeMs;
-      }
+  // Map session time to the loop: each block cycle corresponds to one entry.
+  int entryIndex = static_cast<int>(sessionMs / blockDurationMs);
+  double offsetWithinBlock = std::fmod(sessionMs, blockDurationMs);
+  double targetBgmMs = bgmBlockStartMs + offsetWithinBlock;
 
-      loopDurationMs = loopEndTimeMs - loopStartTimeMs;
-    }
-  }
-
-  double sessionMs = seconds * 1000.0;
-  double targetBgmMs = sessionMs;
-  int entryIndex = 0;
-
-  if (loopDurationMs > 0.0) {
-    if (sessionMs < 0.0)
-      sessionMs = 0.0;
-
-    // Concentrate looping: the session timeline is mapped entirely
-    // to the loop body, skipping the intro entirely on all cycles.
-    entryIndex = static_cast<int>(sessionMs / loopDurationMs);
-    targetBgmMs = loopStartTimeMs + std::fmod(sessionMs, loopDurationMs);
-  }
-
-  // Set the calculated entry index (clamped to reclist size)
+  // Clamp entry index to reclist bounds
   const int total = totalEntries.load();
   if (total > 0) {
     currentEntryIndex.store(std::clamp(entryIndex, 0, total - 1));
   }
 
+  const double fileSR = static_cast<double>(bgmPlayer.getSampleRate());
   const int64_t targetSamples =
-      static_cast<int64_t>((targetBgmMs / 1000.0) * currentSampleRate);
+      static_cast<int64_t>((targetBgmMs / 1000.0) * fileSR);
   bgmPlayer.seekToSample(targetSamples);
   projectPlayPositionSeconds.store(seconds, std::memory_order_relaxed);
-
-  // Reset the node index to the appropriate position for the new BGM time
-  juce::ScopedLock sl(dataLock);
-  if (bgmData.has_value()) {
-    currentNodeIndex = 0;
-    for (int i = 0; i < static_cast<int>(bgmData->nodes.size()); ++i) {
-      if (bgmData->nodes[i].timeMs < targetBgmMs - 0.001)
-        currentNodeIndex = i + 1;
-      else
-        break;
-    }
-  }
 }
 
 //==============================================================================

@@ -87,8 +87,12 @@ private:
   std::optional<GuideBGMData> bgmData;
   BGMPlayer bgmPlayer;
 
-  // Timing scheduler state
-  std::atomic<int> currentNodeIndex{0}; // Current timing node index
+  // Pre-computed BGM loop boundaries (in milliseconds)
+  // Block = [bgmBlockStartMs, bgmBlockEndMs)
+  // The first timing node defines blockStart; the node with repeatTargetNodeIndex defines blockEnd.
+  double bgmBlockStartMs = 0.0;
+  double bgmBlockEndMs   = 0.0;
+
   bool isBGMPlayingFlag = false;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KiraNastroProcessor)
