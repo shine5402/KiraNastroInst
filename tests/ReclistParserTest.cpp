@@ -2,8 +2,10 @@
 #include "data/ReclistParser.h"
 
 // Bundled test data — see tests/testdata/NOTES.md for license info
-static constexpr const char* k8MoraPath        = TEST_DATA_DIR "/8mora.txt";
-static constexpr const char* k8MoraCommentPath = TEST_DATA_DIR "/8mora-comment.txt";
+// Shift-JIS original (marked binary in .gitattributes); UTF-8 copy alongside it.
+// The comment sidecar is auto-discovered by the parser (basename + "-comment.txt").
+static constexpr const char* k8MoraPath     = TEST_DATA_DIR "/8mora.txt";
+static constexpr const char* k8MoraUtf8Path = TEST_DATA_DIR "/8mora-utf8.txt";
 
 // ── Error cases ───────────────────────────────────────────────────────────────
 
@@ -155,4 +157,62 @@ TEST_CASE("ReclistParser: comment file — '#' lines skipped", "[ReclistParser]"
     CHECK(result->comments.at("_a") == "_a_val");
 
     commentFile.deleteFile();
+}
+
+// ── UTF-8 encoding path ───────────────────────────────────────────────────────
+// 8mora-utf8.txt is an iconv-converted copy of 8mora.txt.
+// Both must decode to identical in-memory content.
+
+TEST_CASE("ReclistParser: 8mora-utf8.txt — same entry count as Shift-JIS version",
+          "[ReclistParser][encoding]")
+{
+    juce::File f(k8MoraUtf8Path);
+    if (!f.existsAsFile()) SKIP("8mora-utf8.txt not found");
+
+    auto result = ReclistParser::load(f);
+
+    REQUIRE(result.has_value());
+    CHECK(result->name == "8mora-utf8");
+    CHECK(result->entries.size() == 153);
+}
+
+TEST_CASE("ReclistParser: UTF-8 and Shift-JIS versions decode to identical entries",
+          "[ReclistParser][encoding]")
+{
+    juce::File sjisFile(k8MoraPath);
+    juce::File utf8File(k8MoraUtf8Path);
+    if (!sjisFile.existsAsFile() || !utf8File.existsAsFile())
+        SKIP("test data not found");
+
+    auto sjis = ReclistParser::load(sjisFile);
+    auto utf8 = ReclistParser::load(utf8File);
+
+    REQUIRE(sjis.has_value());
+    REQUIRE(utf8.has_value());
+
+    // Entry lists must be identical after decoding
+    REQUIRE(sjis->entries.size() == utf8->entries.size());
+    for (size_t i = 0; i < sjis->entries.size(); ++i)
+        CHECK(sjis->entries[i] == utf8->entries[i]);
+}
+
+TEST_CASE("ReclistParser: UTF-8 and Shift-JIS versions decode to identical comments",
+          "[ReclistParser][encoding]")
+{
+    juce::File sjisFile(k8MoraPath);
+    juce::File utf8File(k8MoraUtf8Path);
+    if (!sjisFile.existsAsFile() || !utf8File.existsAsFile())
+        SKIP("test data not found");
+
+    auto sjis = ReclistParser::load(sjisFile);
+    auto utf8 = ReclistParser::load(utf8File);
+
+    REQUIRE(sjis.has_value());
+    REQUIRE(utf8.has_value());
+
+    // Comment maps must have the same keys and values after decoding
+    // (keys in utf8 map have the same decoded strings as sjis keys)
+    CHECK(sjis->comments.size() == utf8->comments.size());
+    for (const auto& [key, value] : sjis->comments)
+        CHECK(utf8->comments.count(key) == 1);
 }

@@ -1,0 +1,10 @@
+# Shift-JIS test data — disable all line-ending conversion and text diffing.
+# Without this, core.autocrlf=true (Windows default) would mangle the files.
+tests/testdata/8mora.txt         binary
+tests/testdata/8mora-comment.txt binary
+tests/testdata/Jazz-100-A.txt    binary
+# Audio — tracked via Git LFS (handles binary implicitly via -text)
+tests/testdata/*.wav filter=lfs diff=lfs merge=lfs -text
+
+# Font binaries
+resources/fonts/*.ttf            binary

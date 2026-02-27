@@ -3,8 +3,10 @@
 #include "data/GuideBGMParser.h"
 
 // Bundled test data — see tests/testdata/NOTES.md for license info
-static constexpr const char* kJazzWavPath = TEST_DATA_DIR "/Jazz-100-A.wav";
-static constexpr const char* kJazzTxtPath = TEST_DATA_DIR "/Jazz-100-A.txt";
+// Shift-JIS originals (marked binary in .gitattributes); UTF-8 copy alongside.
+static constexpr const char* kJazzWavPath     = TEST_DATA_DIR "/Jazz-100-A.wav";
+static constexpr const char* kJazzTxtPath     = TEST_DATA_DIR "/Jazz-100-A.txt";
+static constexpr const char* kJazzTxtUtf8Path = TEST_DATA_DIR "/Jazz-100-A-utf8.txt";
 
 // ── Error cases ───────────────────────────────────────────────────────────────
 
@@ -205,4 +207,64 @@ TEST_CASE("GuideBGMParser: trailing comment field is captured", "[GuideBGMParser
     auto result = GuideBGMParser::loadFromTimingFile(tmp.getFile());
     REQUIRE(result.has_value());
     CHECK(result->nodes[0].comment == "BGM start");
+}
+
+// ── UTF-8 encoding path ───────────────────────────────────────────────────────
+// Jazz-100-A-utf8.txt is an iconv-converted copy of Jazz-100-A.txt.
+// Both must decode to identical node data (including Japanese comment strings).
+
+TEST_CASE("GuideBGMParser: Jazz-100-A-utf8.txt — same 6 nodes as Shift-JIS version",
+          "[GuideBGMParser][encoding]")
+{
+    juce::File f(kJazzTxtUtf8Path);
+    if (!f.existsAsFile()) SKIP("Jazz-100-A-utf8.txt not found");
+
+    auto result = GuideBGMParser::loadFromTimingFile(f);
+
+    REQUIRE(result.has_value());
+    CHECK(result->nodes.size() == 6);
+}
+
+TEST_CASE("GuideBGMParser: UTF-8 and Shift-JIS versions decode to identical nodes",
+          "[GuideBGMParser][encoding]")
+{
+    juce::File sjisFile(kJazzTxtPath);
+    juce::File utf8File(kJazzTxtUtf8Path);
+    if (!sjisFile.existsAsFile() || !utf8File.existsAsFile())
+        SKIP("test data not found");
+
+    auto sjis = GuideBGMParser::loadFromTimingFile(sjisFile);
+    auto utf8 = GuideBGMParser::loadFromTimingFile(utf8File);
+
+    REQUIRE(sjis.has_value());
+    REQUIRE(utf8.has_value());
+    REQUIRE(sjis->nodes.size() == utf8->nodes.size());
+
+    for (size_t i = 0; i < sjis->nodes.size(); ++i)
+    {
+        CHECK(sjis->nodes[i].timeMs               == Catch::Approx(utf8->nodes[i].timeMs));
+        CHECK(sjis->nodes[i].isRecordingStart      == utf8->nodes[i].isRecordingStart);
+        CHECK(sjis->nodes[i].isRecordingEnd        == utf8->nodes[i].isRecordingEnd);
+        CHECK(sjis->nodes[i].isSwitching           == utf8->nodes[i].isSwitching);
+        CHECK(sjis->nodes[i].repeatTargetNodeIndex == utf8->nodes[i].repeatTargetNodeIndex);
+        CHECK(sjis->nodes[i].comment               == utf8->nodes[i].comment);
+    }
+}
+
+TEST_CASE("GuideBGMParser: UTF-8 timing file — Japanese comment decodes correctly",
+          "[GuideBGMParser][encoding]")
+{
+    juce::File f(kJazzTxtUtf8Path);
+    if (!f.existsAsFile()) SKIP("Jazz-100-A-utf8.txt not found");
+
+    auto result = GuideBGMParser::loadFromTimingFile(f);
+    REQUIRE(result.has_value());
+    REQUIRE(result->nodes.size() == 6);
+
+    // Node 0 comment: "BGM再生" — verify non-empty and contains Japanese
+    CHECK_FALSE(result->nodes[0].comment.isEmpty());
+    // Node 5 comment: the long save-and-advance description
+    CHECK_FALSE(result->nodes[5].comment.isEmpty());
+    // Both must survive the round-trip identical to the Shift-JIS version
+    // (covered by the "identical nodes" test above)
 }
