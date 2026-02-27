@@ -7,3 +7,4 @@ build-*/
 *.vst3
 *.component
 compile_commands.json
+.claude/

@@ -37,7 +37,7 @@ juce_add_plugin(KiraNastro
     COPY_PLUGIN_AFTER_BUILD     FALSE
     FORMATS                     VST3 AU LV2 Standalone
     VST3_CATEGORIES             "Instrument"
-    AU_MAIN_TYPE                "aumu"
+    AU_MAIN_TYPE                kAudioUnitType_MusicDevice
 )
 
 target_sources(KiraNastro

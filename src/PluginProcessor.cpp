@@ -59,6 +59,57 @@ void KiraNastroProcessor::setStateInformation(const void* /*data*/, int /*sizeIn
 }
 
 //==============================================================================
+// Data loading
+
+bool KiraNastroProcessor::loadReclist(const juce::File& reclistFile)
+{
+    auto result = ReclistParser::load(reclistFile);
+
+    juce::ScopedLock sl(dataLock);
+    reclistData = result;
+
+    if (result.has_value())
+    {
+        currentEntryIndex.store(0);
+        totalEntries.store(static_cast<int>(result->entries.size()));
+        return true;
+    }
+
+    totalEntries.store(0);
+    return false;
+}
+
+bool KiraNastroProcessor::loadGuideBGM(const juce::File& wavFile)
+{
+    auto timingResult = GuideBGMParser::load(wavFile);
+    bool wavOk        = bgmPlayer.loadFile(wavFile);
+
+    {
+        juce::ScopedLock sl(dataLock);
+        bgmData = timingResult;
+    }
+
+    return wavOk;
+}
+
+std::optional<ReclistData> KiraNastroProcessor::getReclistData() const
+{
+    juce::ScopedLock sl(dataLock);
+    return reclistData;
+}
+
+std::optional<GuideBGMData> KiraNastroProcessor::getGuideBGMData() const
+{
+    juce::ScopedLock sl(dataLock);
+    return bgmData;
+}
+
+bool KiraNastroProcessor::isBGMLoaded() const
+{
+    return bgmPlayer.isLoaded();
+}
+
+//==============================================================================
 // Plugin entry point — required by JUCE
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
