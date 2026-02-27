@@ -20,24 +20,31 @@ public:
     int  getNumChannels()  const noexcept;
     int  getTotalSamples() const noexcept;
 
-    // Phase 3 stubs (commented out — add implementations in Phase 3):
-    // void prepareToPlay(double hostSampleRate, int blockSize);
-    // void renderNextBlock(juce::AudioBuffer<float>&, int start, int num);
-    // void seekToSample(int64_t pos);
-    // void play(); void stop();
-    // bool isPlaying() const noexcept;
-    // int64_t getCurrentPositionSamples() const noexcept;
+    // Phase 3 implementation:
+    void prepareToPlay(double hostSampleRate, int blockSize);
+    void renderNextBlock(juce::AudioBuffer<float>&, int start, int num);
+    void seekToSample(int64_t pos);
+    void play();
+    void stop();
+    bool isPlaying() const noexcept;
+    int64_t getCurrentPositionSamples() const noexcept;
 
-    // Thread safety note for Phase 3:
+    // Thread safety note:
     // audioBuffer is written once on the message thread (loadFile), then read-only
-    // from processBlock. The position counter added in Phase 3 must be
-    // std::atomic<int64_t> — never lock inside renderNextBlock.
+    // from processBlock. The position counter is std::atomic<int64_t> — never lock inside renderNextBlock.
 
 private:
     juce::AudioFormatManager formatManager;
     juce::AudioBuffer<float> audioBuffer;
     int  loadedSampleRate = 0;
     bool loaded           = false;
+    
+    // Playback state
+    std::atomic<int64_t> currentPositionSamples { 0 };
+    std::atomic<bool>    isPlayingFlag         { false };
+    double               hostSampleRate        { 44100.0 };
+    double               playbackRatio         { 1.0 };
+    double               positionFraction      { 0.0 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BGMPlayer)
 };

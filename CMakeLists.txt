@@ -62,6 +62,8 @@ target_sources(KiraNastro
         src/ui/MainComponent.cpp
         src/ui/TimingIndicator.h
         src/ui/TimingIndicator.cpp
+        src/ui/PlaybackControls.h
+        src/ui/PlaybackControls.cpp
         src/utils/Fonts.h
         src/utils/TextEncoding.h
         src/utils/TextEncoding.cpp
