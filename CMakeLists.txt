@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # JUCE submodule
 add_subdirectory(JUCE)
 
+enable_testing()
+
 # Embed fonts as binary data
 juce_add_binary_data(KiraNastroFonts
     HEADER_NAME "BinaryDataFonts.h"
@@ -88,3 +90,5 @@ target_link_libraries(KiraNastro
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags
 )
+
+add_subdirectory(tests)

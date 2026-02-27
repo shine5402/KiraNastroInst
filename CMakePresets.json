@@ -87,6 +87,20 @@
       "displayName": "Build AU (macOS only)",
       "configurePreset": "relwithdebinfo",
       "targets": ["KiraNastro_AU"]
+    },
+    {
+      "name": "tests",
+      "displayName": "Build test runner",
+      "configurePreset": "relwithdebinfo",
+      "targets": ["KiraNastro_Tests"]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "tests",
+      "displayName": "Run unit tests",
+      "configurePreset": "relwithdebinfo",
+      "output": { "verbosity": "verbose" }
     }
   ]
 }
