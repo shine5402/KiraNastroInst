@@ -22,7 +22,7 @@
     },
     {
       "name": "relwithdebinfo",
-      "displayName": "RelWithDebInfo — Ninja (primary dev build)",
+      "displayName": "RelWithDebInfo — Ninja",
       "inherits": "base-ninja",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo"
@@ -74,25 +74,33 @@
       "name": "standalone",
       "displayName": "Build Standalone app",
       "configurePreset": "relwithdebinfo",
-      "targets": ["KiraNastro_Standalone"]
+      "targets": [
+        "KiraNastro_Standalone"
+      ]
     },
     {
       "name": "vst3",
       "displayName": "Build VST3",
       "configurePreset": "relwithdebinfo",
-      "targets": ["KiraNastro_VST3"]
+      "targets": [
+        "KiraNastro_VST3"
+      ]
     },
     {
       "name": "au",
       "displayName": "Build AU (macOS only)",
       "configurePreset": "relwithdebinfo",
-      "targets": ["KiraNastro_AU"]
+      "targets": [
+        "KiraNastro_AU"
+      ]
     },
     {
       "name": "tests",
       "displayName": "Build test runner",
       "configurePreset": "relwithdebinfo",
-      "targets": ["KiraNastro_Tests"]
+      "targets": [
+        "KiraNastro_Tests"
+      ]
     }
   ],
   "testPresets": [
@@ -100,7 +108,9 @@
       "name": "tests",
       "displayName": "Run unit tests",
       "configurePreset": "relwithdebinfo",
-      "output": { "verbosity": "verbose" }
+      "output": {
+        "verbosity": "verbose"
+      }
     }
   ]
 }
