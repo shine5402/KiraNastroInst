@@ -23,6 +23,11 @@ KiraNastro inst. handles steps 1-3 inside a DAW. Step 4 is handled by the compan
 - Plugin outputs the BGM audio directly into the DAW's audio stream
 - Users can record on any track while the plugin track provides the guide
 
+## General Rules
+
+- Read [CODING_STYLE.md](file:///Users/shine_5402/Project/KiraNastroInst/CODING_STYLE.md) for code style.
+- When writing commit messages, use the conventional commit message format.
+
 ## Standalone-Only Code Rule
 
 **CRITICAL**: Do NOT use `JUCE_STANDALONE_APPLICATION` (or any JUCE format macro) as a compile-time guard in shared plugin code (PluginProcessor.cpp, PluginEditor.cpp, etc.).
