@@ -5,10 +5,6 @@
 #include "utils/Icons.h"
 #include <cmath>
 
-#ifdef JUCE_STANDALONE_APPLICATION
-#include "ui/PlaybackControls.h"
-#endif
-
 KiraNastroEditor::KiraNastroEditor(KiraNastroProcessor &p)
     : AudioProcessorEditor(&p), audioProcessor(p) {
   setLookAndFeel(&lookAndFeel);
@@ -34,25 +30,32 @@ KiraNastroEditor::KiraNastroEditor(KiraNastroProcessor &p)
   timingIndicator = std::make_unique<TimingIndicator>();
   addAndMakeVisible(timingIndicator.get());
 
-// Standalone-specific controls
-#ifdef JUCE_STANDALONE_APPLICATION
-  playbackControls = std::make_unique<PlaybackControls>(audioProcessor);
-  addAndMakeVisible(playbackControls.get());
+  // Standalone-only debug controls.
+  // NOTE: JUCE compiles shared plugin code with JUCE_STANDALONE_APPLICATION=1
+  // even for VST3/AU builds (because all format flags are 1 in shared code).
+  // Use wrapperType at runtime to correctly distinguish standalone from plugin.
+  const bool isStandalone =
+      (audioProcessor.wrapperType ==
+       juce::AudioProcessor::wrapperType_Standalone);
 
-  progressSlider = std::make_unique<juce::Slider>();
-  addAndMakeVisible(progressSlider.get());
-  progressSlider->addListener(this);
-  progressSlider->setRange(0.0, 600.0, 0.1);
-  progressSlider->setSliderStyle(juce::Slider::LinearHorizontal);
-  progressSlider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 100, 20);
-  progressSlider->setTextValueSuffix(" s");
-#endif
+  if (isStandalone) {
+    playbackControls = std::make_unique<PlaybackControls>(audioProcessor);
+    addAndMakeVisible(playbackControls.get());
 
-#ifdef JUCE_STANDALONE_APPLICATION
-  setSize(800, 360);
-#else
-  setSize(800, 232);
-#endif
+    progressSlider = std::make_unique<juce::Slider>();
+    addAndMakeVisible(progressSlider.get());
+    progressSlider->addListener(this);
+    progressSlider->setRange(0.0, 600.0, 0.1);
+    progressSlider->setSliderStyle(juce::Slider::LinearHorizontal);
+    progressSlider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 100,
+                                    20);
+    progressSlider->setTextValueSuffix(" s");
+
+    setSize(800, 360);
+  } else {
+    setSize(800, 232);
+  }
+
   startTimerHz(30);
 }
 
@@ -202,11 +205,11 @@ void KiraNastroEditor::paint(juce::Graphics &g) {
                juce::Justification::centredLeft, false);
   }
 
-#ifdef JUCE_STANDALONE_APPLICATION
-  // 7. Debug area background (y=232)
-  g.setColour(juce::Colour(0xFFDBEAFE));
-  g.fillRect(0, 232, 800, getHeight() - 232);
-#endif
+  if (playbackControls) {
+    // 7. Debug area background (y=232)
+    g.setColour(juce::Colour(0xFFDBEAFE));
+    g.fillRect(0, 232, 800, getHeight() - 232);
+  }
 }
 
 void KiraNastroEditor::resized() {
@@ -217,13 +220,12 @@ void KiraNastroEditor::resized() {
   // Nav bar: y=192, h=40 → icon y = 192 + (40-24)/2 = 200; x = 800 - 8(pad) - 24 = 768
   menuButton->setBounds(768, 200, 24, 24);
 
-#ifdef JUCE_STANDALONE_APPLICATION
-  progressSlider->setBounds(20, 242, getWidth() - 40, 32);
-  progressSlider->setColour(juce::Slider::textBoxTextColourId,
-                            KiraNastroLookAndFeel::md3Primary);
-
-  playbackControls->setBounds(0, 278, getWidth(), 64);
-#endif
+  if (playbackControls) {
+    progressSlider->setBounds(20, 242, getWidth() - 40, 32);
+    progressSlider->setColour(juce::Slider::textBoxTextColourId,
+                              KiraNastroLookAndFeel::md3Primary);
+    playbackControls->setBounds(0, 278, getWidth(), 64);
+  }
 }
 
 //==============================================================================
@@ -247,7 +249,6 @@ void KiraNastroEditor::timerCallback() {
   timingIndicator->setProgress(
       audioProcessor.bgmLoopProgress.load(std::memory_order_relaxed));
 
-#ifdef JUCE_STANDALONE_APPLICATION
   if (progressSlider && audioProcessor.isBGMLoaded()) {
     const double currentPos = audioProcessor.projectPlayPositionSeconds.load();
     // Don't overwrite the slider while the user is dragging it
@@ -261,17 +262,11 @@ void KiraNastroEditor::timerCallback() {
       progressSlider->setRange(0.0, projectLength, 0.1);
     }
   }
-#endif
 }
 
 void KiraNastroEditor::sliderValueChanged(juce::Slider *slider) {
-#ifdef JUCE_STANDALONE_APPLICATION
-  if (slider == progressSlider.get()) {
+  if (progressSlider && slider == progressSlider.get())
     audioProcessor.seekBGM(slider->getValue());
-  }
-#else
-  juce::ignoreUnused(slider);
-#endif
 }
 
 void KiraNastroEditor::reloadChipIcons() {

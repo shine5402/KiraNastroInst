@@ -23,13 +23,27 @@ KiraNastro inst. handles steps 1-3 inside a DAW. Step 4 is handled by the compan
 - Plugin outputs the BGM audio directly into the DAW's audio stream
 - Users can record on any track while the plugin track provides the guide
 
+## Standalone-Only Code Rule
+
+**CRITICAL**: Do NOT use `JUCE_STANDALONE_APPLICATION` (or any JUCE format macro) as a compile-time guard in shared plugin code (PluginProcessor.cpp, PluginEditor.cpp, etc.).
+
+**Why**: JUCE compiles the shared plugin code **once** with all enabled format flags set to `1` (including `JucePlugin_Build_Standalone=1`), so `JUCE_STANDALONE_APPLICATION` is always `1` in shared code regardless of which format (VST3/AU/Standalone) you are building.
+
+**Correct approach**: Use `wrapperType` for **runtime** detection:
+- In `PluginProcessor`: `wrapperType == wrapperType_Standalone`
+- In `PluginEditor`: `audioProcessor.wrapperType == juce::AudioProcessor::wrapperType_Standalone`
+- Store the result in a `const bool isStandalone` local and branch on it.
+- For optional UI members (PlaybackControls, progressSlider), leave them as `nullptr` in plugin mode and check `if (playbackControls)` before use.
+
 ## Build Commands
 
+**Default development build**: Use the `debug` preset — it enables JUCE logging output, which is required for debugging.
+
 ```bash
-# Configure
+# Configure (do this once, or after changing CMakeLists.txt)
 cmake --preset debug
 
-# Build
+# Build everything
 cmake --build --preset debug
 
 # Build specific format

@@ -110,7 +110,8 @@ private:
   double recordingStartOffsetMs     = 0.0; // ms from bgmBlockStart to isRecordingStart node
   double recordingWindowDurationMs  = 0.0; // duration of recording window in ms
 
-  bool isBGMPlayingFlag = false;
+  bool isBGMPlayingFlag = false;         // standalone only
+  bool wasDAWPlayingLastBlock = false;   // plugin mode: detect play→stop→play
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KiraNastroProcessor)
 };

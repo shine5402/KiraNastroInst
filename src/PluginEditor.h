@@ -2,6 +2,7 @@
 
 #include "PluginProcessor.h"
 #include "ui/LookAndFeel.h"
+#include "ui/PlaybackControls.h"
 #include "ui/TimingIndicator.h"
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -49,11 +50,10 @@ private:
   // Timing pie chart (always present)
   std::unique_ptr<TimingIndicator> timingIndicator;
 
-// Standalone-specific controls
-#ifdef JUCE_STANDALONE_APPLICATION
-  std::unique_ptr<class PlaybackControls> playbackControls;
+  // Standalone-only debug controls (null in plugin mode; created at runtime
+  // based on wrapperType — compile-time guards don't work in JUCE shared code)
+  std::unique_ptr<PlaybackControls> playbackControls;
   std::unique_ptr<juce::Slider> progressSlider;
-#endif
 
   void showMenu();
   void reloadChipIcons();

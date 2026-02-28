@@ -34,8 +34,37 @@ void KiraNastroProcessor::processBlock(juce::AudioBuffer<float> &buffer,
 
   buffer.clear();
 
-  if (!bgmPlayer.isLoaded() || !isBGMPlayingFlag)
+  if (!bgmPlayer.isLoaded())
     return;
+
+  // NOTE: JUCE compiles shared plugin code with JUCE_STANDALONE_APPLICATION=1
+  // even for VST3/AU builds. Use wrapperType at runtime instead.
+  if (wrapperType == wrapperType_Standalone) {
+    if (!isBGMPlayingFlag)
+      return;
+  } else {
+    // In plugin mode, follow the DAW transport
+    bool dawPlaying = false;
+    if (auto *playHead = getPlayHead()) {
+      if (auto pos = playHead->getPosition())
+        dawPlaying = pos->getIsPlaying();
+    }
+
+    // On play-start transition, reset to the beginning of the reclist
+    if (dawPlaying && !wasDAWPlayingLastBlock) {
+      currentEntryIndex.store(0);
+      projectPlayPositionSeconds.store(0.0, std::memory_order_relaxed);
+      if (bgmPlayer.isLoaded() && bgmBlockEndMs > bgmBlockStartMs) {
+        const double fileSR = static_cast<double>(bgmPlayer.getSampleRate());
+        bgmPlayer.seekToSample(
+            static_cast<int64_t>((bgmBlockStartMs / 1000.0) * fileSR));
+      }
+    }
+    wasDAWPlayingLastBlock = dawPlaying;
+
+    if (!dawPlaying)
+      return;
+  }
 
   // --- Simple block-loop playback ---
   // The BGM "block" is defined by [bgmBlockStartMs, bgmBlockEndMs).
