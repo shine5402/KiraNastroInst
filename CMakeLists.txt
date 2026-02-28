@@ -36,8 +36,8 @@ juce_add_plugin(KiraNastro
     COMPANY_EMAIL               ""
     PLUGIN_MANUFACTURER_CODE    KNVT
     PLUGIN_CODE                 Knst
-    PRODUCT_NAME                "KiraNastro VSTi"
-    LV2URI                      "urn:kiranastro:KiraNastroVSTi"
+    PRODUCT_NAME                "KiraNastro inst"
+    LV2URI                      "urn:kiranastro:KiraNastroInst"
     DESCRIPTION                 "UTAU VCV voicebank recording guide plugin"
     IS_SYNTH                    TRUE
     NEEDS_MIDI_INPUT            TRUE

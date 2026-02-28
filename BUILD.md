@@ -1,4 +1,4 @@
-# Building KiraNastro VSTi
+# Building KiraNastro inst.
 
 ## Prerequisites
 
@@ -147,12 +147,12 @@ After a successful build, artifacts are in:
 
 ```
 build/<preset>/KiraNastro_artefacts/<BuildType>/
-├── Standalone/   KiraNastro VSTi.app        (macOS)
-│                 KiraNastro VSTi.exe        (Windows)
-│                 KiraNastro VSTi            (Linux)
-├── VST3/         KiraNastro VSTi.vst3       (all platforms)
-├── AU/           KiraNastro VSTi.component  (macOS only)
-└── LV2/          KiraNastro VSTi.lv2        (Linux)
+├── Standalone/   KiraNastro inst.app        (macOS)
+│                 KiraNastro inst.exe        (Windows)
+│                 KiraNastro inst            (Linux)
+├── VST3/         KiraNastro inst.vst3       (all platforms)
+├── AU/           KiraNastro inst.component  (macOS only)
+└── LV2/          KiraNastro inst.lv2        (Linux)
 ```
 
 Plugins are **not** installed to system directories automatically.

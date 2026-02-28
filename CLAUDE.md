@@ -1,8 +1,8 @@
-# KiraNastro VSTi - AI Coding Agent Guideline
+# KiraNastro inst. - AI Coding Agent Guideline
 
 ## Project Overview
 
-KiraNastro VSTi is a **JUCE-based VSTi plugin** that helps voice actors and singers record UTAU voicebank data (連続音/VCV) directly within their DAW. It replaces standalone tools like OREMO and RecStar by providing the same guide-BGM-driven recording workflow as a plugin, so users can leverage their existing DAW setup, VST chains, and recording workflows.
+KiraNastro inst. is a **JUCE-based instrument plugin** that helps voice actors and singers record UTAU voicebank data (連続音/VCV) directly within their DAW. It replaces standalone tools like OREMO and RecStar by providing the same guide-BGM-driven recording workflow as a plugin, so users can leverage their existing DAW setup, VST chains, and recording workflows.
 
 **License:** GPLv3
 
@@ -14,14 +14,14 @@ In the UTAU/vocal synthesis community, recording a VCV (連続音) voicebank inv
 3. The user sings each reclist entry in time with the BGM, which loops for each entry
 4. After recording, the continuous audio is split into individual samples using timing data
 
-KiraNastro VSTi handles steps 1-3 inside a DAW. Step 4 is handled by the companion tool **KiraWavTar** (see Architecture section).
+KiraNastro inst. handles steps 1-3 inside a DAW. Step 4 is handled by the companion tool **KiraWavTar** (see Architecture section).
 
-### Why a VSTi?
+### Why an instrument plugin?
 
 - Users can use their own microphone chain (EQ, compression, de-noise VSTs)
 - DAW provides superior recording, undo, and mixing capabilities
-- VSTi outputs the BGM audio directly into the DAW's audio stream
-- Users can record on any track while the VSTi track provides the guide
+- Plugin outputs the BGM audio directly into the DAW's audio stream
+- Users can record on any track while the plugin track provides the guide
 
 ## Build Commands
 
@@ -49,7 +49,7 @@ ctest --preset debug
 
 ### Plugin Type
 
-- **VSTi (Virtual Instrument)**: `IS_SYNTH=TRUE`, `NEEDS_MIDI_INPUT=TRUE`
+- **Instrument Plugin**: `IS_SYNTH=TRUE`, `NEEDS_MIDI_INPUT=TRUE`
 - **Formats**: VST3, AU (macOS), LV2 (Linux), Standalone (for development)
 - **Framework**: JUCE 8.x via CMake, added as a git submodule
 
@@ -62,7 +62,7 @@ ctest --preset debug
 
 #### UI Layer (PluginEditor)
 - **Main Display**: Shows current reclist entry (large Japanese/romaji text), comment line, next entry preview, progress counter, and a timing indicator (pie chart showing position within current BGM cycle).
-- **Bottom Bar**: Brand name "KiraNastro VSTi" with logo, hamburger menu for settings.
+- **Bottom Bar**: Brand name "KiraNastro inst." with logo, hamburger menu for settings.
 - **Settings/Menu**: Load reclist, load BGM, export label file, navigation controls.
 - **Design System**: Loosely follows Material Design 3. Uses rounded containers, soft shadows, blue primary color (#1A3FC7 approximate from design).
 
@@ -176,7 +176,7 @@ The plugin window has a compact, horizontal layout:
    - Progress counter: `% 14 / 115` (current / total)
 
 3. **Bottom bar** (dark blue/navy):
-   - Brand logo + "KiraNastro VSTi" text
+   - Brand logo + "KiraNastro inst." text
    - Hamburger menu icon (right side)
 
 ### Design System
@@ -231,10 +231,10 @@ KiraNastroVST/
 - Output BGM audio mixed into the plugin's audio output buffer
 
 ### DAW Integration
-- The plugin is a VSTi (instrument), so it sits on an instrument track
+- The plugin is an instrument, so it sits on an instrument track
 - BGM audio goes through the plugin output — the user hears it on that track
 - The user records on a separate audio track (standard DAW workflow)
-- No MIDI is actually needed for the core workflow, but we accept MIDI input as required by VSTi spec
+- No MIDI is actually needed for the core workflow, but we accept MIDI input as required by instrument plugin spec
 - Could optionally use MIDI note-on to trigger next entry advance
 
 ### Label Generation

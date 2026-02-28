@@ -178,7 +178,7 @@ void KiraNastroEditor::paint(juce::Graphics &g) {
     const auto navFont = juce::Font(juce::FontOptions()
                                         .withTypeface(Fonts::getLexendRegular())
                                         .withPointHeight(14.0f));
-    const juce::String brandText = "KiraNastro VSTi";
+    const juce::String brandText = "KiraNastro inst.";
     
     // Measure text via GlyphArrangement to get accurate pixel height/width
     juce::GlyphArrangement ga;
@@ -205,7 +205,7 @@ void KiraNastroEditor::paint(juce::Graphics &g) {
 
     currentX += logoSize + spacing;
 
-    // "KiraNastro VSTi" vertically centred relative to nav bar
+    // "KiraNastro inst." vertically centred relative to nav bar
     g.setColour(juce::Colours::white);
     g.setFont(navFont);
     g.drawText(brandText,
