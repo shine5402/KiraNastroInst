@@ -55,6 +55,7 @@ private:
 #endif
 
   void showMenu();
+  void reloadChipIcons();
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KiraNastroEditor)
 };

@@ -18,11 +18,8 @@ KiraNastroEditor::KiraNastroEditor(KiraNastroProcessor &p)
     logoDrawable = juce::Drawable::createFromSVG(*xml);
   }
 
-  // Chip icons tinted onSecondaryContainer
-  nextIcon     = Icons::load(Icons::arrowRightSvg,
-                              KiraNastroLookAndFeel::md3OnSecondaryContainer);
-  progressIcon = Icons::load(Icons::percentSvg,
-                              KiraNastroLookAndFeel::md3OnSecondaryContainer);
+  // Load chip icons
+  reloadChipIcons();
 
   // Hamburger menu button (Material Symbols, white for nav bar)
   auto menuIcon = Icons::load(Icons::menuSvg, juce::Colours::white);
@@ -66,14 +63,14 @@ KiraNastroEditor::~KiraNastroEditor() {
 //==============================================================================
 void KiraNastroEditor::paint(juce::Graphics &g) {
   // 1. Background
-  g.fillAll(KiraNastroLookAndFeel::md3Background);
+  g.fillAll(lookAndFeel.background());
 
   // 2. Card (MD3 Filled Card — no shadow)
-  g.setColour(KiraNastroLookAndFeel::md3CardFilled);
+  g.setColour(lookAndFeel.cardFilled());
   g.fillRoundedRectangle(juce::Rectangle<float>(16.0f, 8.0f, 768.0f, 128.0f), 16.0f);
 
   // 3. Comment text (Sarasa 16pt, onSurfaceVariant)
-  g.setColour(KiraNastroLookAndFeel::md3OnSurfaceVariant);
+  g.setColour(lookAndFeel.onSurfaceVariant());
   g.setFont(juce::Font(juce::FontOptions()
                            .withTypeface(Fonts::getSarasaRegular())
                            .withHeight(16.0f)));
@@ -82,7 +79,7 @@ void KiraNastroEditor::paint(juce::Graphics &g) {
                    juce::Justification::left, 1);
 
   // 4. Entry text (Sarasa 48pt, primary)
-  g.setColour(KiraNastroLookAndFeel::md3Primary);
+  g.setColour(lookAndFeel.primary());
   g.setFont(juce::Font(juce::FontOptions()
                            .withTypeface(Fonts::getSarasaRegular())
                            .withHeight(48.0f)));
@@ -115,7 +112,7 @@ void KiraNastroEditor::paint(juce::Graphics &g) {
       const float chipW = padH + iconSize + iconTextGap + textW + padH;
       const juce::Rectangle<float> chipRect(16.0f, chipY, chipW, chipH);
 
-      g.setColour(KiraNastroLookAndFeel::md3SecondaryContainer);
+      g.setColour(lookAndFeel.secondaryContainer());
       g.fillRoundedRectangle(chipRect, 16.0f);
 
       if (nextIcon) {
@@ -127,7 +124,7 @@ void KiraNastroEditor::paint(juce::Graphics &g) {
             juce::RectanglePlacement::centred, 1.0f);
       }
 
-      g.setColour(KiraNastroLookAndFeel::md3OnSecondaryContainer);
+      g.setColour(lookAndFeel.onSecondaryContainer());
       g.drawText(nextEntryName,
                  juce::Rectangle<float>(16.0f + padH + iconSize + iconTextGap,
                                         chipY, textW + 2.0f, chipH)
@@ -146,7 +143,7 @@ void KiraNastroEditor::paint(juce::Graphics &g) {
       const float chipX = 784.0f - chipW;
       const juce::Rectangle<float> chipRect(chipX, chipY, chipW, chipH);
 
-      g.setColour(KiraNastroLookAndFeel::md3SecondaryContainer);
+      g.setColour(lookAndFeel.secondaryContainer());
       g.fillRoundedRectangle(chipRect, 16.0f);
 
       if (progressIcon) {
@@ -158,7 +155,7 @@ void KiraNastroEditor::paint(juce::Graphics &g) {
             juce::RectanglePlacement::centred, 1.0f);
       }
 
-      g.setColour(KiraNastroLookAndFeel::md3OnSecondaryContainer);
+      g.setColour(lookAndFeel.onSecondaryContainer());
       g.drawText(progressStr,
                  juce::Rectangle<float>(chipX + padH + iconSize + iconTextGap,
                                         chipY, textW + 2.0f, chipH)
@@ -171,7 +168,7 @@ void KiraNastroEditor::paint(juce::Graphics &g) {
   {
     const float navBarY = 192.0f;
     const float navBarH = 40.0f;
-    g.setColour(KiraNastroLookAndFeel::md3NavBar);
+    g.setColour(lookAndFeel.navBar());
     g.fillRect(0.0f, navBarY, 800.0f, navBarH);
 
     // Font setup
@@ -179,18 +176,16 @@ void KiraNastroEditor::paint(juce::Graphics &g) {
                                         .withTypeface(Fonts::getLexendRegular())
                                         .withPointHeight(14.0f));
     const juce::String brandText = "KiraNastro inst.";
-    
+
     // Measure text via GlyphArrangement to get accurate pixel height/width
     juce::GlyphArrangement ga;
     ga.addLineOfText(navFont, brandText, 0.0f, 0.0f);
     const auto textBounds = ga.getBoundingBox(0, -1, true);
     const float textW = textBounds.getWidth();
-    const float textH = textBounds.getHeight();
 
     const float logoSize = 24.0f;
     const float spacing  = 2.0f;
-    const float totalW   = logoSize + spacing + textW;
-    
+
     // Starting X to keep them grouped (starting from X=10)
     float currentX = 10.0f;
 
@@ -206,7 +201,7 @@ void KiraNastroEditor::paint(juce::Graphics &g) {
     currentX += logoSize + spacing;
 
     // "KiraNastro inst." vertically centred relative to nav bar
-    g.setColour(juce::Colours::white);
+    g.setColour(lookAndFeel.onNavBar());
     g.setFont(navFont);
     g.drawText(brandText,
                juce::Rectangle<float>(currentX, navBarY, textW + 2.0f, navBarH)
@@ -284,10 +279,21 @@ void KiraNastroEditor::sliderValueChanged(juce::Slider *slider) {
 #endif
 }
 
+void KiraNastroEditor::reloadChipIcons() {
+  // Chip icons tinted with current onSecondaryContainer color
+  nextIcon     = Icons::load(Icons::arrowRightSvg,
+                              lookAndFeel.onSecondaryContainer());
+  progressIcon = Icons::load(Icons::percentSvg,
+                              lookAndFeel.onSecondaryContainer());
+}
+
 void KiraNastroEditor::showMenu() {
   juce::PopupMenu menu;
   menu.addItem(1, "Load Reclist...");
   menu.addItem(2, "Load BGM...");
+  menu.addSeparator();
+  const bool dark = lookAndFeel.getDarkMode();
+  menu.addItem(3, dark ? "Switch to Light Mode" : "Switch to Dark Mode");
 
   menu.showMenuAsync(juce::PopupMenu::Options()
                          .withTargetComponent(menuButton.get())
@@ -318,6 +324,10 @@ void KiraNastroEditor::showMenu() {
                                  audioProcessor.loadGuideBGM(file);
                                bgmChooser.reset();
                              });
+                       } else if (result == 3) {
+                         lookAndFeel.setDarkMode(!lookAndFeel.getDarkMode());
+                         reloadChipIcons();
+                         repaint();
                        }
                      });
 }

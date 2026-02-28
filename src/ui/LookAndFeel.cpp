@@ -20,6 +20,8 @@ const juce::Colour KiraNastroLookAndFeel::md3OnSurfaceVariantDark     { 0xFFC6C5
 const juce::Colour KiraNastroLookAndFeel::md3SecondaryContainerDark   { 0xFF424659 };
 const juce::Colour KiraNastroLookAndFeel::md3OnSecondaryContainerDark { 0xFFDEE1F9 };
 const juce::Colour KiraNastroLookAndFeel::md3SurfaceVariantDark       { 0xFF45464F };
+const juce::Colour KiraNastroLookAndFeel::md3NavBarDark               { 0xFF1E2A5E };
+const juce::Colour KiraNastroLookAndFeel::md3OnNavBarDark             { 0xFFFFFFFF };
 
 KiraNastroLookAndFeel::KiraNastroLookAndFeel()
 {
@@ -34,6 +36,33 @@ KiraNastroLookAndFeel::KiraNastroLookAndFeel()
     setColour(juce::PopupMenu::highlightedBackgroundColourId,     md3Primary.withAlpha(0.1f));
     setColour(juce::PopupMenu::highlightedTextColourId,           md3Primary);
 }
+
+void KiraNastroLookAndFeel::setDarkMode(bool dark)
+{
+    isDark = dark;
+
+    // Re-apply JUCE colour IDs using the new scheme
+    setColour(juce::ResizableWindow::backgroundColourId,      background());
+    setColour(juce::TextButton::buttonColourId,               primary());
+    setColour(juce::TextButton::textColourOffId,              onNavBar());
+    setColour(juce::Label::textColourId,                      primary());
+    setColour(juce::ScrollBar::thumbColourId,                 primary());
+    setColour(juce::PopupMenu::backgroundColourId,            isDark ? cardFilled() : juce::Colours::white);
+    setColour(juce::PopupMenu::textColourId,                  primary());
+    setColour(juce::PopupMenu::highlightedBackgroundColourId, primary().withAlpha(0.1f));
+    setColour(juce::PopupMenu::highlightedTextColourId,       primary());
+}
+
+// Accessor methods that respect isDark state
+juce::Colour KiraNastroLookAndFeel::background()             const { return isDark ? md3BackgroundDark            : md3Background; }
+juce::Colour KiraNastroLookAndFeel::cardFilled()             const { return isDark ? md3CardFilledDark            : md3CardFilled; }
+juce::Colour KiraNastroLookAndFeel::primary()                const { return isDark ? md3PrimaryDark               : md3Primary; }
+juce::Colour KiraNastroLookAndFeel::onSurfaceVariant()       const { return isDark ? md3OnSurfaceVariantDark      : md3OnSurfaceVariant; }
+juce::Colour KiraNastroLookAndFeel::secondaryContainer()     const { return isDark ? md3SecondaryContainerDark    : md3SecondaryContainer; }
+juce::Colour KiraNastroLookAndFeel::onSecondaryContainer()   const { return isDark ? md3OnSecondaryContainerDark  : md3OnSecondaryContainer; }
+juce::Colour KiraNastroLookAndFeel::surfaceVariant()         const { return isDark ? md3SurfaceVariantDark        : md3SurfaceVariant; }
+juce::Colour KiraNastroLookAndFeel::navBar()                 const { return isDark ? md3NavBarDark                : md3NavBar; }
+juce::Colour KiraNastroLookAndFeel::onNavBar()               const { return isDark ? md3OnNavBarDark              : md3OnNavBar; }
 
 void KiraNastroLookAndFeel::drawButtonBackground(juce::Graphics& g,
                                                   juce::Button& button,
@@ -65,10 +94,10 @@ void KiraNastroLookAndFeel::drawPopupMenuBackground(juce::Graphics& g,
     const juce::Rectangle<float> bounds(0.0f, 0.0f,
                                         static_cast<float>(width),
                                         static_cast<float>(height));
-    g.setColour(juce::Colours::white);
+    g.setColour(isDark ? cardFilled() : juce::Colours::white);
     g.fillRoundedRectangle(bounds, 12.0f);
 
-    g.setColour(md3Primary.withAlpha(0.15f));
+    g.setColour(primary().withAlpha(0.15f));
     g.drawRoundedRectangle(bounds.reduced(0.5f), 12.0f, 1.0f);
 }
 
@@ -85,17 +114,17 @@ void KiraNastroLookAndFeel::drawPopupMenuItem(juce::Graphics& g,
                                                const juce::Colour* /*textColour*/)
 {
     if (isSeparator) {
-        g.setColour(md3Primary.withAlpha(0.15f));
+        g.setColour(primary().withAlpha(0.15f));
         g.fillRect(area.getX() + 8, area.getCentreY(), area.getWidth() - 16, 1);
         return;
     }
 
     if (isHighlighted && isActive) {
-        g.setColour(md3Primary.withAlpha(0.10f));
+        g.setColour(primary().withAlpha(0.10f));
         g.fillRect(area);
     }
 
-    const juce::Colour textCol = isActive ? md3Primary : juce::Colours::grey;
+    const juce::Colour textCol = isActive ? primary() : juce::Colours::grey;
     g.setColour(textCol);
     g.setFont(juce::Font(juce::FontOptions().withTypeface(Fonts::getSarasaRegular()).withHeight(14.0f)));
     g.drawFittedText(text,
