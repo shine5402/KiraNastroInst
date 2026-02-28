@@ -246,13 +246,8 @@ std::optional<GuideBGMData> KiraNastroProcessor::getGuideBGMData() const {
 bool KiraNastroProcessor::isBGMLoaded() const { return bgmPlayer.isLoaded(); }
 
 void KiraNastroProcessor::startBGM() {
-  // Seek to block start before playing so the loop is correct
-  if (bgmBlockEndMs > bgmBlockStartMs) {
-    const double fileSR = static_cast<double>(bgmPlayer.getSampleRate());
-    const int64_t startSamples =
-        static_cast<int64_t>((bgmBlockStartMs / 1000.0) * fileSR);
-    bgmPlayer.seekToSample(startSamples);
-  }
+  // Play from the current position (set by loadGuideBGM or seekBGM).
+  // Do NOT reset to blockStart here — that would undo any user seek.
   bgmPlayer.play();
   isBGMPlayingFlag = true;
 }
@@ -300,6 +295,16 @@ void KiraNastroProcessor::seekBGM(double seconds) {
       static_cast<int64_t>((targetBgmMs / 1000.0) * fileSR);
   bgmPlayer.seekToSample(targetSamples);
   projectPlayPositionSeconds.store(seconds, std::memory_order_relaxed);
+
+  // Update loop progress so the timing indicator reflects the seek immediately,
+  // even when paused (processBlock only runs while playing).
+  const double cycleDuration = bgmBlockEndMs - bgmBlockStartMs;
+  if (cycleDuration > 0.0) {
+    const float progress =
+        static_cast<float>((targetBgmMs - bgmBlockStartMs) / cycleDuration);
+    bgmLoopProgress.store(std::clamp(progress, 0.0f, 1.0f),
+                          std::memory_order_relaxed);
+  }
 }
 
 //==============================================================================

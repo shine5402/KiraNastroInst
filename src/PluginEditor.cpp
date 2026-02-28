@@ -71,27 +71,21 @@ void KiraNastroEditor::paint(juce::Graphics &g) {
 
   // 3. Comment text (Sarasa 16pt, onSurfaceVariant)
   g.setColour(lookAndFeel.onSurfaceVariant());
-  g.setFont(juce::Font(juce::FontOptions()
-                           .withTypeface(Fonts::getSarasaRegular())
-                           .withHeight(16.0f)));
+  g.setFont(juce::Font(juce::FontOptions(Fonts::getSarasaRegular()).withHeight(16.0f)));
   g.drawFittedText(currentEntryComment,
                    juce::Rectangle<int>(48, 28, 668, 20),
                    juce::Justification::left, 1);
 
   // 4. Entry text (Sarasa 48pt, primary)
   g.setColour(lookAndFeel.primary());
-  g.setFont(juce::Font(juce::FontOptions()
-                           .withTypeface(Fonts::getSarasaRegular())
-                           .withHeight(48.0f)));
+  g.setFont(juce::Font(juce::FontOptions(Fonts::getSarasaRegular()).withHeight(48.0f)));
   g.drawFittedText(currentEntryName,
                    juce::Rectangle<int>(48, 56, 668, 60),
                    juce::Justification::left, 1);
 
   // 5. Info row chips
   {
-    const juce::Font chipFont(juce::FontOptions()
-                                  .withTypeface(Fonts::getSarasaRegular())
-                                  .withHeight(16.0f));
+    const juce::Font chipFont(juce::FontOptions(Fonts::getSarasaRegular()).withHeight(16.0f));
     g.setFont(chipFont);
     const float chipH        = 32.0f;
     const float chipY        = 144.0f;
@@ -172,9 +166,7 @@ void KiraNastroEditor::paint(juce::Graphics &g) {
     g.fillRect(0.0f, navBarY, 800.0f, navBarH);
 
     // Font setup
-    const auto navFont = juce::Font(juce::FontOptions()
-                                        .withTypeface(Fonts::getLexendRegular())
-                                        .withPointHeight(14.0f));
+    const auto navFont = juce::Font(juce::FontOptions(Fonts::getLexendRegular()).withPointHeight(14.0f));
     const juce::String brandText = "KiraNastro inst.";
 
     // Measure text via GlyphArrangement to get accurate pixel height/width
@@ -257,7 +249,9 @@ void KiraNastroEditor::timerCallback() {
 #ifdef JUCE_STANDALONE_APPLICATION
   if (progressSlider && audioProcessor.isBGMLoaded()) {
     const double currentPos = audioProcessor.projectPlayPositionSeconds.load();
-    progressSlider->setValue(currentPos, juce::dontSendNotification);
+    // Don't overwrite the slider while the user is dragging it
+    if (progressSlider->getThumbBeingDragged() == -1)
+      progressSlider->setValue(currentPos, juce::dontSendNotification);
 
     const double bgmLength    = audioProcessor.getBGMLengthSeconds();
     const double projectLength = bgmLength * 10.0;

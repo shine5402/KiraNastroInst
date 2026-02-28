@@ -126,7 +126,7 @@ void KiraNastroLookAndFeel::drawPopupMenuItem(juce::Graphics& g,
 
     const juce::Colour textCol = isActive ? primary() : juce::Colours::grey;
     g.setColour(textCol);
-    g.setFont(juce::Font(juce::FontOptions().withTypeface(Fonts::getSarasaRegular()).withHeight(14.0f)));
+    g.setFont(juce::Font(juce::FontOptions(Fonts::getSarasaRegular()).withHeight(14.0f)));
     g.drawFittedText(text,
                      area.withLeft(area.getX() + 16).withRight(area.getRight() - 8),
                      juce::Justification::centredLeft, 1);
