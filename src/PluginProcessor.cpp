@@ -17,7 +17,6 @@ void KiraNastroProcessor::prepareToPlay(double sampleRate,
 
 void KiraNastroProcessor::releaseResources() {
   bgmPlayer.stop();
-  bgmPlayer.unload();
 }
 
 bool KiraNastroProcessor::isBusesLayoutSupported(
@@ -37,33 +36,84 @@ void KiraNastroProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   if (!bgmPlayer.isLoaded())
     return;
 
+  const bool isStandalone = (wrapperType == wrapperType_Standalone);
+  double hostBlockStartSeconds =
+      projectPlayPositionSeconds.load(std::memory_order_relaxed);
+
   // NOTE: JUCE compiles shared plugin code with JUCE_STANDALONE_APPLICATION=1
   // even for VST3/AU builds. Use wrapperType at runtime instead.
-  if (wrapperType == wrapperType_Standalone) {
+  if (isStandalone) {
     if (!isBGMPlayingFlag)
       return;
   } else {
-    // In plugin mode, follow the DAW transport
+    // In plugin mode, lock playback to the DAW transport every block.
+    // This handles host seek/jump/loop correctly.
     bool dawPlaying = false;
+    juce::Optional<juce::AudioPlayHead::PositionInfo> pos;
     if (auto *playHead = getPlayHead()) {
-      if (auto pos = playHead->getPosition())
+      pos = playHead->getPosition();
+      if (pos.hasValue())
         dawPlaying = pos->getIsPlaying();
     }
 
-    // On play-start transition, reset to the beginning of the reclist
-    if (dawPlaying && !wasDAWPlayingLastBlock) {
-      currentEntryIndex.store(0);
-      projectPlayPositionSeconds.store(0.0, std::memory_order_relaxed);
-      if (bgmPlayer.isLoaded() && bgmBlockEndMs > bgmBlockStartMs) {
-        const double fileSR = static_cast<double>(bgmPlayer.getSampleRate());
-        bgmPlayer.seekToSample(
-            static_cast<int64_t>((bgmBlockStartMs / 1000.0) * fileSR));
-      }
-    }
-    wasDAWPlayingLastBlock = dawPlaying;
-
-    if (!dawPlaying)
+    if (!dawPlaying) {
+      if (wasDAWPlayingLastBlock)
+        bgmPlayer.stop();
+      wasDAWPlayingLastBlock = false;
       return;
+    }
+
+    if (!pos.hasValue())
+      return;
+
+    // Prefer sample-accurate host position; fall back to other timeline info.
+    if (auto timeInSamples = pos->getTimeInSamples();
+        timeInSamples.hasValue()) {
+      hostBlockStartSeconds =
+          static_cast<double>(*timeInSamples) / currentSampleRate;
+    } else if (auto timeInSeconds = pos->getTimeInSeconds();
+               timeInSeconds.hasValue()) {
+      hostBlockStartSeconds = *timeInSeconds;
+    } else if (auto ppq = pos->getPpqPosition(); ppq.hasValue()) {
+      if (auto bpm = pos->getBpm(); bpm.hasValue() && *bpm > 0.0)
+        hostBlockStartSeconds = (*ppq * 60.0) / *bpm;
+    }
+
+    hostBlockStartSeconds = std::max(hostBlockStartSeconds, 0.0);
+    projectPlayPositionSeconds.store(hostBlockStartSeconds,
+                                     std::memory_order_relaxed);
+
+    const double blockDurationMs = bgmBlockEndMs - bgmBlockStartMs;
+    const double fileSampleRate = static_cast<double>(bgmPlayer.getSampleRate());
+    if (blockDurationMs <= 0.0 || fileSampleRate <= 0.0)
+      return;
+
+    const double hostStartMs = hostBlockStartSeconds * 1000.0;
+    const int cycleIndex =
+        static_cast<int>(std::floor(hostStartMs / blockDurationMs));
+
+    // If a reclist is loaded, stop rendering after the last entry's cycle.
+    const int total = totalEntries.load();
+    if (total > 0 && cycleIndex >= total) {
+      currentEntryIndex.store(total - 1);
+      bgmPlayer.stop();
+      wasDAWPlayingLastBlock = dawPlaying;
+      return;
+    }
+
+    const int entryIndex = std::max(cycleIndex, 0);
+    currentEntryIndex.store(entryIndex);
+
+    double offsetWithinCycleMs = std::fmod(hostStartMs, blockDurationMs);
+    if (offsetWithinCycleMs < 0.0)
+      offsetWithinCycleMs += blockDurationMs;
+
+    const double targetBgmMs = bgmBlockStartMs + offsetWithinCycleMs;
+    const int64_t targetSample =
+        static_cast<int64_t>((targetBgmMs / 1000.0) * fileSampleRate);
+    bgmPlayer.seekToSample(targetSample);
+    bgmPlayer.play();
+    wasDAWPlayingLastBlock = dawPlaying;
   }
 
   // --- Simple block-loop playback ---
@@ -131,10 +181,17 @@ void KiraNastroProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     samplesRendered += samplesToRender;
 
     // Update project position
-    projectPlayPositionSeconds.store(
+    if (isStandalone) {
+      projectPlayPositionSeconds.store(
         projectPlayPositionSeconds.load(std::memory_order_relaxed) +
-            static_cast<double>(samplesToRender) / currentSampleRate,
+          static_cast<double>(samplesToRender) / currentSampleRate,
         std::memory_order_relaxed);
+    } else {
+      projectPlayPositionSeconds.store(
+        hostBlockStartSeconds +
+          static_cast<double>(samplesRendered) / currentSampleRate,
+        std::memory_order_relaxed);
+    }
   }
 
   // Update loop progress for UI
