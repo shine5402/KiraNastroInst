@@ -342,7 +342,8 @@ void KiraNastroEditor::showMenu() {
                          descChooser = std::make_unique<juce::FileChooser>(
                              "Save KiraWavTar Description File",
                              juce::File::getSpecialLocation(
-                                 juce::File::userDesktopDirectory),
+                                 juce::File::userDesktopDirectory)
+                                 .getChildFile("recording.kirawavtar-desc.json"),
                              "*.kirawavtar-desc.json");
                          descChooser->launchAsync(
                              juce::FileBrowserComponent::saveMode |
@@ -350,6 +351,16 @@ void KiraNastroEditor::showMenu() {
                              [this, params](const juce::FileChooser &f) {
                                auto file = f.getResult();
                                if (!file.getFullPathName().isEmpty()) {
+                                 // Ensure the file has the correct compound extension.
+                                 // If the user typed "foo.json", replace with "foo.kirawavtar-desc.json".
+                                 // If they typed "foo" (no extension), append ".kirawavtar-desc.json".
+                                 if (!file.getFileName().endsWith(".kirawavtar-desc.json")) {
+                                   juce::String base = file.getFileName();
+                                   if (base.endsWith(".json"))
+                                     base = base.dropLastCharacters(5);
+                                   file = file.getParentDirectory()
+                                              .getChildFile(base + ".kirawavtar-desc.json");
+                                 }
                                  juce::String errMsg;
                                  bool ok = LabelExporter::exportToFile(
                                      file, params, errMsg);
