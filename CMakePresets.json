@@ -22,7 +22,7 @@
     },
     {
       "name": "relwithdebinfo",
-      "displayName": "RelWithDebInfo — Ninja",
+      "displayName": "RelWithDebInfo",
       "inherits": "base-ninja",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo"
@@ -30,7 +30,7 @@
     },
     {
       "name": "debug",
-      "displayName": "Debug — Ninja",
+      "displayName": "Debug",
       "inherits": "base-ninja",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
@@ -38,19 +38,19 @@
     },
     {
       "name": "release",
-      "displayName": "Release — Ninja",
+      "displayName": "Release",
       "inherits": "base-ninja",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
     },
     {
-      "name": "relwithdebinfo-makefiles",
-      "displayName": "RelWithDebInfo — Unix Makefiles (macOS/Linux, no Ninja required)",
-      "inherits": "base",
-      "generator": "Unix Makefiles",
+      "name": "release-universal",
+      "displayName": "Release (Universal Binary, macOS Only)",
+      "inherits": "base-ninja",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_OSX_ARCHITECTURES": "arm64;x86_64"
       }
     }
   ],
@@ -69,6 +69,11 @@
       "name": "release",
       "displayName": "Build all — Release",
       "configurePreset": "release"
+    },
+    {
+      "name": "release-universal",
+      "displayName": "Build all — Release (Universal Binary, macOS Only)",
+      "configurePreset": "release-universal"
     },
     {
       "name": "standalone",
@@ -95,9 +100,17 @@
       ]
     },
     {
-      "name": "tests",
+      "name": "tests (relwithdebinfo)",
       "displayName": "Build test runner",
       "configurePreset": "relwithdebinfo",
+      "targets": [
+        "KiraNastro_Tests"
+      ]
+    },
+    {
+      "name": "tests (debug)",
+      "displayName": "Build test runner (Debug)",
+      "configurePreset": "debug",
       "targets": [
         "KiraNastro_Tests"
       ]
@@ -105,9 +118,17 @@
   ],
   "testPresets": [
     {
-      "name": "tests",
+      "name": "tests (relwithdebinfo)",
       "displayName": "Run unit tests",
       "configurePreset": "relwithdebinfo",
+      "output": {
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "tests (debug)",
+      "displayName": "Run unit tests (Debug)",
+      "configurePreset": "debug",
       "output": {
         "verbosity": "verbose"
       }
