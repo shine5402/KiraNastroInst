@@ -1,7 +1,8 @@
 #pragma once
 
-#include "PluginProcessor.h"
 #include <juce_core/juce_core.h>
+
+#include "PluginProcessor.h"
 
 // Generates a KiraWavTar-compatible .kirawavtar-desc.json from BGM timing data.
 // Entry timing is computed deterministically from the BGM block structure —
@@ -10,9 +11,8 @@ class LabelExporter
 {
 public:
     // Returns true on success. On failure, errorMessage is set.
-    static bool exportToFile(const juce::File& destFile,
-                             const KiraNastroProcessor::DescExportParams& params,
-                             juce::String& errorMessage);
+    static bool exportToFile(const juce::File &destFile, const KiraNastroProcessor::DescExportParams &params,
+                             juce::String &errorMessage);
 
 private:
     // Convert seconds to HH:MM:SS.fff timecode (KiraWavTar format)

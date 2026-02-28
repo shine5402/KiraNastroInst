@@ -10,16 +10,20 @@ public:
     TimingIndicator() = default;
     ~TimingIndicator() override = default;
 
-    void paint(juce::Graphics& g) override;
+    void paint(juce::Graphics &g) override;
     void resized() override;
 
     // Set the progress value [0.0, 1.0] — call from the editor's timer
-    void setProgress(float newProgress) { progress = newProgress; repaint(); }
+    void setProgress(float newProgress)
+    {
+        m_progress = newProgress;
+        repaint();
+    }
 
     // TODO Phase 4: draw filled arc, border, cue markers
 
 private:
-    float progress = 0.0f;
+    float m_progress = 0.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimingIndicator)
 };

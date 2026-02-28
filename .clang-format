@@ -1,0 +1,49 @@
+---
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+AccessModifierOffset: -4
+IndentAccessModifiers: false
+EmptyLineBeforeAccessModifier: LogicalBlock 
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+  AfterControlStatement: MultiLine
+  AfterClass: true
+  AfterStruct: true
+  AfterNamespace: true
+  AfterEnum: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeCatch: true
+  BeforeElse: true
+  IndentBraces: false
+
+ForEachMacros: 
+  - for_each
+
+StatementMacros: 
+  - JUCE_DECLARE_NON_COPYABLE
+  - JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR
+  - JUCE_LEAK_DETECTOR
+  - JUCE_DECLARE_WEAK_REFERENCEABLE
+
+SortIncludes: 
+  Enabled: true
+  IgnoreCase: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex:           '^<juce_.*>$'
+    Priority:        1
+  - Regex:           '^<.*>$'
+    Priority:        2
+  - Regex:           '^".*"$'
+    Priority:        3
+
+ColumnLimit: 120
+AllowShortBlocksOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: Inline
+AllowShortLoopsOnASingleLine: false

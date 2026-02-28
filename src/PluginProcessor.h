@@ -1,117 +1,122 @@
 #pragma once
 
-#include <atomic>
 #include <juce_audio_processors/juce_audio_processors.h>
+
+#include <atomic>
 #include <optional>
 
 #include "audio/BGMPlayer.h"
 #include "data/GuideBGMParser.h"
 #include "data/ReclistParser.h"
 
-class KiraNastroProcessor : public juce::AudioProcessor {
+class KiraNastroProcessor : public juce::AudioProcessor
+{
 public:
-  KiraNastroProcessor();
-  ~KiraNastroProcessor() override;
+    KiraNastroProcessor();
+    ~KiraNastroProcessor() override;
 
-  //==============================================================================
-  // AudioProcessor overrides
-  void prepareToPlay(double sampleRate, int samplesPerBlock) override;
-  void releaseResources() override;
+    //==============================================================================
+    // AudioProcessor overrides
+    void prepareToPlay(double sampleRate, int samplesPerBlock) override;
+    void releaseResources() override;
 
-  bool isBusesLayoutSupported(const BusesLayout &layouts) const override;
+    bool isBusesLayoutSupported(const BusesLayout &layouts) const override;
 
-  void processBlock(juce::AudioBuffer<float> &, juce::MidiBuffer &) override;
+    void processBlock(juce::AudioBuffer<float> &, juce::MidiBuffer &) override;
 
-  //==============================================================================
-  juce::AudioProcessorEditor *createEditor() override;
-  bool hasEditor() const override { return true; }
+    //==============================================================================
+    juce::AudioProcessorEditor *createEditor() override;
+    bool hasEditor() const override { return true; }
 
-  //==============================================================================
-  const juce::String getName() const override { return JucePlugin_Name; }
+    //==============================================================================
+    const juce::String getName() const override { return JucePlugin_Name; }
 
-  bool acceptsMidi() const override { return true; }
-  bool producesMidi() const override { return false; }
-  bool isMidiEffect() const override { return false; }
-  double getTailLengthSeconds() const override { return 0.0; }
+    bool acceptsMidi() const override { return true; }
+    bool producesMidi() const override { return false; }
+    bool isMidiEffect() const override { return false; }
+    double getTailLengthSeconds() const override { return 0.0; }
 
-  //==============================================================================
-  int getNumPrograms() override { return 1; }
-  int getCurrentProgram() override { return 0; }
-  void setCurrentProgram(int) override {}
-  const juce::String getProgramName(int) override { return {}; }
-  void changeProgramName(int, const juce::String &) override {}
+    //==============================================================================
+    int getNumPrograms() override { return 1; }
+    int getCurrentProgram() override { return 0; }
+    void setCurrentProgram(int) override {}
+    const juce::String getProgramName(int) override { return {}; }
+    void changeProgramName(int, const juce::String &) override {}
 
-  //==============================================================================
-  void getStateInformation(juce::MemoryBlock &destData) override;
-  void setStateInformation(const void *data, int sizeInBytes) override;
+    //==============================================================================
+    void getStateInformation(juce::MemoryBlock &destData) override;
+    void setStateInformation(const void *data, int sizeInBytes) override;
 
-  //==============================================================================
-  // Data loading — call from message thread
-  bool loadReclist(const juce::File &reclistFile);
-  bool loadGuideBGM(const juce::File &wavFile);
+    //==============================================================================
+    // Data loading — call from message thread
+    bool loadReclist(const juce::File &reclistFile);
+    bool loadGuideBGM(const juce::File &wavFile);
 
-  // Thread-safe accessors — return copies under lock
-  std::optional<ReclistData> getReclistData() const;
-  std::optional<GuideBGMData> getGuideBGMData() const;
-  bool isBGMLoaded() const;
+    // Thread-safe accessors — return copies under lock
+    std::optional<ReclistData> getReclistData() const;
+    std::optional<GuideBGMData> getGuideBGMData() const;
+    bool isBGMLoaded() const;
 
-  struct DescExportParams {
-    std::vector<juce::String> entryNames;
-    double blockDurationSec       = 0.0;
-    double recordingStartOffsetSec = 0.0;
-    double recordingWindowDurationSec = 0.0;
-    double sampleRate             = 44100.0;
-    bool isValid() const {
-      return !entryNames.empty() && blockDurationSec > 0.0 &&
-             recordingWindowDurationSec > 0.0;
-    }
-  };
-  DescExportParams getDescExportParams() const;
+    struct DescExportParams
+    {
+        std::vector<juce::String> entryNames;
+        double blockDurationSec = 0.0;
+        double recordingStartOffsetSec = 0.0;
+        double recordingWindowDurationSec = 0.0;
+        double sampleRate = 44100.0;
+        bool isValid() const
+        {
+            return !entryNames.empty() && blockDurationSec > 0.0 && recordingWindowDurationSec > 0.0;
+        }
+    };
+    DescExportParams getDescExportParams() const;
 
-  struct EntryInfo {
-    juce::String name;
-    juce::String comment;
-    int index;
-    int total;
-  };
-  EntryInfo getCurrentEntryInfo() const;
-  EntryInfo getNextEntryInfo() const;
+    struct EntryInfo
+    {
+        juce::String name;
+        juce::String comment;
+        int index;
+        int total;
+    };
+    EntryInfo getCurrentEntryInfo() const;
+    EntryInfo getNextEntryInfo() const;
 
-  // BGM control methods (for standalone)
-  void startBGM();
-  void stopBGM();
-  void seekBGM(double seconds);
-  bool isBGMPlaying() const;
-  double getBGMLengthSeconds() const;
+    // BGM control methods (for standalone)
+    void startBGM();
+    void stopBGM();
+    void seekBGM(double seconds);
+    bool isBGMPlaying() const;
+    double getBGMLengthSeconds() const;
 
-  //==============================================================================
-  // Public atomic state — safe to read from UI thread
-  std::atomic<int> currentEntryIndex{0};
-  std::atomic<double> projectPlayPositionSeconds{0.0};
-  std::atomic<float> bgmLoopProgress{0.0f};
-  std::atomic<int> totalEntries{0};
+    //==============================================================================
+    // Public member variables
+    std::atomic<int> m_currentEntryIndex{0};
+    std::atomic<double> m_projectPlayPositionSeconds{0.0};
+    std::atomic<float> m_bgmLoopProgress{0.0f};
+    std::atomic<int> m_totalEntries{0};
 
 private:
-  double currentSampleRate = 44100.0;
-  int currentBlockSize = 512;
+    // Private member variables
+    double m_currentSampleRate = 44100.0;
+    int m_currentBlockSize = 512;
 
-  juce::CriticalSection dataLock;
-  std::optional<ReclistData> reclistData;
-  std::optional<GuideBGMData> bgmData;
-  BGMPlayer bgmPlayer;
+    juce::CriticalSection m_dataLock;
+    std::optional<ReclistData> m_reclistData;
+    std::optional<GuideBGMData> m_bgmData;
+    BGMPlayer m_bgmPlayer;
 
-  // Pre-computed BGM loop boundaries (in milliseconds)
-  // Block = [bgmBlockStartMs, bgmBlockEndMs)
-  // The first timing node defines blockStart; the node with repeatTargetNodeIndex defines blockEnd.
-  double bgmBlockStartMs = 0.0;
-  double bgmBlockEndMs   = 0.0;
+    // Pre-computed BGM loop boundaries (in milliseconds)
+    // Block = [bgmBlockStartMs, bgmBlockEndMs)
+    // The first timing node defines blockStart; the node with repeatTargetNodeIndex defines blockEnd.
+    double m_bgmBlockStartMs = 0.0;
+    double m_bgmBlockEndMs = 0.0;
 
-  // Recording window offsets within the BGM block (in milliseconds)
-  double recordingStartOffsetMs     = 0.0; // ms from bgmBlockStart to isRecordingStart node
-  double recordingWindowDurationMs  = 0.0; // duration of recording window in ms
+    // Recording window offsets within the BGM block (in milliseconds)
+    double m_recordingStartOffsetMs = 0.0;    // ms from bgmBlockStart to isRecordingStart node
+    double m_recordingWindowDurationMs = 0.0; // duration of recording window in ms
 
-  bool isBGMPlayingFlag = false;         // standalone only
-  bool wasDAWPlayingLastBlock = false;   // plugin mode: detect play→stop→play
+    bool m_isBGMPlayingFlag = false;       // standalone only
+    bool m_wasDAWPlayingLastBlock = false; // plugin mode: detect play→stop→play
 
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KiraNastroProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KiraNastroProcessor)
 };

@@ -1,429 +1,429 @@
 #include "PluginProcessor.h"
+
 #include "PluginEditor.h"
 
 KiraNastroProcessor::KiraNastroProcessor()
-    : AudioProcessor(BusesProperties().withOutput(
-          "Output", juce::AudioChannelSet::stereo(), true)) {}
+    : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true))
+{
+}
 
-KiraNastroProcessor::~KiraNastroProcessor() {}
+KiraNastroProcessor::~KiraNastroProcessor()
+{
+}
 
 //==============================================================================
-void KiraNastroProcessor::prepareToPlay(double sampleRate,
-                                        int samplesPerBlock) {
-  currentSampleRate = sampleRate;
-  currentBlockSize = samplesPerBlock;
-  bgmPlayer.prepareToPlay(sampleRate, samplesPerBlock);
+void KiraNastroProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+    m_currentSampleRate = sampleRate;
+    m_currentBlockSize = samplesPerBlock;
+    m_bgmPlayer.prepareToPlay(sampleRate, samplesPerBlock);
 }
 
-void KiraNastroProcessor::releaseResources() {
-  bgmPlayer.stop();
+void KiraNastroProcessor::releaseResources()
+{
+    m_bgmPlayer.stop();
 }
 
-bool KiraNastroProcessor::isBusesLayoutSupported(
-    const BusesLayout &layouts) const {
-  // Stereo output only; no audio input required (VSTi)
-  if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
-    return false;
-  return true;
+bool KiraNastroProcessor::isBusesLayoutSupported(const BusesLayout &layouts) const
+{
+    // Stereo output only; no audio input required (VSTi)
+    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+        return false;
+    return true;
 }
 
-void KiraNastroProcessor::processBlock(juce::AudioBuffer<float> &buffer,
-                                       juce::MidiBuffer & /*midiMessages*/) {
-  juce::ScopedNoDenormals noDenormals;
+void KiraNastroProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiBuffer & /*midiMessages*/)
+{
+    juce::ScopedNoDenormals noDenormals;
 
-  buffer.clear();
+    buffer.clear();
 
-  if (!bgmPlayer.isLoaded())
-    return;
-
-  const bool isStandalone = (wrapperType == wrapperType_Standalone);
-  double hostBlockStartSeconds =
-      projectPlayPositionSeconds.load(std::memory_order_relaxed);
-
-  // NOTE: JUCE compiles shared plugin code with JUCE_STANDALONE_APPLICATION=1
-  // even for VST3/AU builds. Use wrapperType at runtime instead.
-  if (isStandalone) {
-    if (!isBGMPlayingFlag)
-      return;
-  } else {
-    // In plugin mode, lock playback to the DAW transport every block.
-    // This handles host seek/jump/loop correctly.
-    bool dawPlaying = false;
-    juce::Optional<juce::AudioPlayHead::PositionInfo> pos;
-    if (auto *playHead = getPlayHead()) {
-      pos = playHead->getPosition();
-      if (pos.hasValue())
-        dawPlaying = pos->getIsPlaying();
-    }
-
-    if (!dawPlaying) {
-      if (wasDAWPlayingLastBlock)
-        bgmPlayer.stop();
-      wasDAWPlayingLastBlock = false;
-      return;
-    }
-
-    if (!pos.hasValue())
-      return;
-
-    // Prefer sample-accurate host position; fall back to other timeline info.
-    if (auto timeInSamples = pos->getTimeInSamples();
-        timeInSamples.hasValue()) {
-      hostBlockStartSeconds =
-          static_cast<double>(*timeInSamples) / currentSampleRate;
-    } else if (auto timeInSeconds = pos->getTimeInSeconds();
-               timeInSeconds.hasValue()) {
-      hostBlockStartSeconds = *timeInSeconds;
-    } else if (auto ppq = pos->getPpqPosition(); ppq.hasValue()) {
-      if (auto bpm = pos->getBpm(); bpm.hasValue() && *bpm > 0.0)
-        hostBlockStartSeconds = (*ppq * 60.0) / *bpm;
-    }
-
-    hostBlockStartSeconds = std::max(hostBlockStartSeconds, 0.0);
-    projectPlayPositionSeconds.store(hostBlockStartSeconds,
-                                     std::memory_order_relaxed);
-
-    const double blockDurationMs = bgmBlockEndMs - bgmBlockStartMs;
-    const double fileSampleRate = static_cast<double>(bgmPlayer.getSampleRate());
-    if (blockDurationMs <= 0.0 || fileSampleRate <= 0.0)
-      return;
-
-    const double hostStartMs = hostBlockStartSeconds * 1000.0;
-    const int cycleIndex =
-        static_cast<int>(std::floor(hostStartMs / blockDurationMs));
-
-    // If a reclist is loaded, stop rendering after the last entry's cycle.
-    const int total = totalEntries.load();
-    if (total > 0 && cycleIndex >= total) {
-      currentEntryIndex.store(total - 1);
-      bgmPlayer.stop();
-      wasDAWPlayingLastBlock = dawPlaying;
-      return;
-    }
-
-    const int entryIndex = std::max(cycleIndex, 0);
-    currentEntryIndex.store(entryIndex);
-
-    double offsetWithinCycleMs = std::fmod(hostStartMs, blockDurationMs);
-    if (offsetWithinCycleMs < 0.0)
-      offsetWithinCycleMs += blockDurationMs;
-
-    const double targetBgmMs = bgmBlockStartMs + offsetWithinCycleMs;
-    const int64_t targetSample =
-        static_cast<int64_t>((targetBgmMs / 1000.0) * fileSampleRate);
-    bgmPlayer.seekToSample(targetSample);
-    bgmPlayer.play();
-    wasDAWPlayingLastBlock = dawPlaying;
-  }
-
-  // --- Simple block-loop playback ---
-  // The BGM "block" is defined by [bgmBlockStartMs, bgmBlockEndMs).
-  // We render audio within this range. When playback reaches blockEnd,
-  // we seek back to blockStart and advance the reclist entry.
-
-  const double blockStartMs = bgmBlockStartMs;
-  const double blockEndMs   = bgmBlockEndMs;
-
-  if (blockEndMs <= blockStartMs)
-    return; // invalid bounds — nothing to play
-
-  // BGMPlayer positions are in file-sample units, so convert ms using the
-  // file's sample rate, NOT the host sample rate.
-  const double fileSampleRate = static_cast<double>(bgmPlayer.getSampleRate());
-  if (fileSampleRate <= 0.0)
-    return;
-
-  const int64_t blockStartSamples =
-      static_cast<int64_t>((blockStartMs / 1000.0) * fileSampleRate);
-  const int64_t blockEndSamples =
-      static_cast<int64_t>((blockEndMs / 1000.0) * fileSampleRate);
-
-  const int numSamplesInBlock = buffer.getNumSamples();
-  int samplesRendered = 0;
-
-  while (samplesRendered < numSamplesInBlock) {
-    const int64_t currentPos = bgmPlayer.getCurrentPositionSamples();
-
-    // If we're already at or past the block end, loop back
-    if (currentPos >= blockEndSamples) {
-      // Advance reclist entry
-      const int current = currentEntryIndex.load();
-      const int total = totalEntries.load();
-      if (current < total - 1) {
-        currentEntryIndex.store(current + 1);
-      } else {
-        // End of reclist — stop playback
-        bgmPlayer.stop();
-        isBGMPlayingFlag = false;
+    if (!m_bgmPlayer.isLoaded())
         return;
-      }
 
-      bgmPlayer.seekToSample(blockStartSamples);
-      continue; // re-evaluate position from the top
-    }
+    const bool isStandalone = (wrapperType == wrapperType_Standalone);
+    double hostBlockStartSeconds = m_projectPlayPositionSeconds.load(std::memory_order_relaxed);
 
-    // How many host samples remain until the block boundary?
-    // samplesUntilEnd is in file-sample space; convert to host samples.
-    const int64_t fileSamplesUntilEnd = blockEndSamples - currentPos;
-    const double playbackRatio = fileSampleRate / currentSampleRate;
-    const int64_t hostSamplesUntilEnd =
-        static_cast<int64_t>(std::ceil(
-            static_cast<double>(fileSamplesUntilEnd) / playbackRatio));
-    const int remaining = numSamplesInBlock - samplesRendered;
-    const int samplesToRender =
-        static_cast<int>(std::min(static_cast<int64_t>(remaining),
-                                  hostSamplesUntilEnd));
-
-    if (samplesToRender <= 0)
-      break; // safety
-
-    bgmPlayer.renderNextBlock(buffer, samplesRendered, samplesToRender);
-    samplesRendered += samplesToRender;
-
-    // Update project position
+    // NOTE: JUCE compiles shared plugin code with JUCE_STANDALONE_APPLICATION=1
+    // even for VST3/AU builds. Use wrapperType at runtime instead.
     if (isStandalone) {
-      projectPlayPositionSeconds.store(
-        projectPlayPositionSeconds.load(std::memory_order_relaxed) +
-          static_cast<double>(samplesToRender) / currentSampleRate,
-        std::memory_order_relaxed);
-    } else {
-      projectPlayPositionSeconds.store(
-        hostBlockStartSeconds +
-          static_cast<double>(samplesRendered) / currentSampleRate,
-        std::memory_order_relaxed);
+        if (!m_isBGMPlayingFlag)
+            return;
     }
-  }
+    else {
+        // In plugin mode, lock playback to the DAW transport every block.
+        // This handles host seek/jump/loop correctly.
+        bool dawPlaying = false;
+        juce::Optional<juce::AudioPlayHead::PositionInfo> pos;
+        if (auto *playHead = getPlayHead()) {
+            pos = playHead->getPosition();
+            if (pos.hasValue())
+                dawPlaying = pos->getIsPlaying();
+        }
 
-  // Update loop progress for UI
-  const double cycleDuration = blockEndMs - blockStartMs;
-  if (cycleDuration > 0.0) {
-    const double curMs =
-        (static_cast<double>(bgmPlayer.getCurrentPositionSamples()) /
-         fileSampleRate) *
-        1000.0;
-    float progress =
-        static_cast<float>((curMs - blockStartMs) / cycleDuration);
-    bgmLoopProgress.store(std::clamp(progress, 0.0f, 1.0f),
-                          std::memory_order_relaxed);
-  }
+        if (!dawPlaying) {
+            if (m_wasDAWPlayingLastBlock)
+                m_bgmPlayer.stop();
+            m_wasDAWPlayingLastBlock = false;
+            return;
+        }
+
+        if (!pos.hasValue())
+            return;
+
+        // Prefer sample-accurate host position; fall back to other timeline info.
+        if (auto timeInSamples = pos->getTimeInSamples(); timeInSamples.hasValue()) {
+            hostBlockStartSeconds = static_cast<double>(*timeInSamples) / m_currentSampleRate;
+        }
+        else if (auto timeInSeconds = pos->getTimeInSeconds(); timeInSeconds.hasValue()) {
+            hostBlockStartSeconds = *timeInSeconds;
+        }
+        else if (auto ppq = pos->getPpqPosition(); ppq.hasValue()) {
+            if (auto bpm = pos->getBpm(); bpm.hasValue() && *bpm > 0.0)
+                hostBlockStartSeconds = (*ppq * 60.0) / *bpm;
+        }
+
+        hostBlockStartSeconds = std::max(hostBlockStartSeconds, 0.0);
+        m_projectPlayPositionSeconds.store(hostBlockStartSeconds, std::memory_order_relaxed);
+
+        const double blockDurationMs = m_bgmBlockEndMs - m_bgmBlockStartMs;
+        const double fileSampleRate = static_cast<double>(m_bgmPlayer.getSampleRate());
+        if (blockDurationMs <= 0.0 || fileSampleRate <= 0.0)
+            return;
+
+        const double hostStartMs = hostBlockStartSeconds * 1000.0;
+        const int cycleIndex = static_cast<int>(std::floor(hostStartMs / blockDurationMs));
+
+        // If a reclist is loaded, stop rendering after the last entry's cycle.
+        const int total = m_totalEntries.load();
+        if (total > 0 && cycleIndex >= total) {
+            m_currentEntryIndex.store(total - 1);
+            m_bgmPlayer.stop();
+            m_wasDAWPlayingLastBlock = dawPlaying;
+            return;
+        }
+
+        const int entryIndex = std::max(cycleIndex, 0);
+        m_currentEntryIndex.store(entryIndex);
+
+        double offsetWithinCycleMs = std::fmod(hostStartMs, blockDurationMs);
+        if (offsetWithinCycleMs < 0.0)
+            offsetWithinCycleMs += blockDurationMs;
+
+        const double targetBgmMs = m_bgmBlockStartMs + offsetWithinCycleMs;
+        const int64_t targetSample = static_cast<int64_t>((targetBgmMs / 1000.0) * fileSampleRate);
+        m_bgmPlayer.seekToSample(targetSample);
+        m_bgmPlayer.play();
+        m_wasDAWPlayingLastBlock = dawPlaying;
+    }
+
+    // --- Simple block-loop playback ---
+    // The BGM "block" is defined by [bgmBlockStartMs, bgmBlockEndMs).
+    // We render audio within this range. When playback reaches blockEnd,
+    // we seek back to blockStart and advance the reclist entry.
+
+    const double blockStartMs = m_bgmBlockStartMs;
+    const double blockEndMs = m_bgmBlockEndMs;
+
+    if (blockEndMs <= blockStartMs)
+        return; // invalid bounds — nothing to play
+
+    // BGMPlayer positions are in file-sample units, so convert ms using the
+    // file's sample rate, NOT the host sample rate.
+    const double fileSampleRate = static_cast<double>(m_bgmPlayer.getSampleRate());
+    if (fileSampleRate <= 0.0)
+        return;
+
+    const int64_t blockStartSamples = static_cast<int64_t>((blockStartMs / 1000.0) * fileSampleRate);
+    const int64_t blockEndSamples = static_cast<int64_t>((blockEndMs / 1000.0) * fileSampleRate);
+
+    const int numSamplesInBlock = buffer.getNumSamples();
+    int samplesRendered = 0;
+
+    while (samplesRendered < numSamplesInBlock) {
+        const int64_t currentPos = m_bgmPlayer.getCurrentPositionSamples();
+
+        // If we're already at or past the block end, loop back
+        if (currentPos >= blockEndSamples) {
+            // Advance reclist entry
+            const int current = m_currentEntryIndex.load();
+            const int total = m_totalEntries.load();
+            if (current < total - 1) {
+                m_currentEntryIndex.store(current + 1);
+            }
+            else {
+                // End of reclist — stop playback
+                m_bgmPlayer.stop();
+                m_isBGMPlayingFlag = false;
+                return;
+            }
+
+            m_bgmPlayer.seekToSample(blockStartSamples);
+            continue; // re-evaluate position from the top
+        }
+
+        // How many host samples remain until the block boundary?
+        // samplesUntilEnd is in file-sample space; convert to host samples.
+        const int64_t fileSamplesUntilEnd = blockEndSamples - currentPos;
+        const double playbackRatio = fileSampleRate / m_currentSampleRate;
+        const int64_t hostSamplesUntilEnd =
+            static_cast<int64_t>(std::ceil(static_cast<double>(fileSamplesUntilEnd) / playbackRatio));
+        const int remaining = numSamplesInBlock - samplesRendered;
+        const int samplesToRender = static_cast<int>(std::min(static_cast<int64_t>(remaining), hostSamplesUntilEnd));
+
+        if (samplesToRender <= 0)
+            break; // safety
+
+        m_bgmPlayer.renderNextBlock(buffer, samplesRendered, samplesToRender);
+        samplesRendered += samplesToRender;
+
+        // Update project position
+        if (isStandalone) {
+            m_projectPlayPositionSeconds.store(m_projectPlayPositionSeconds.load(std::memory_order_relaxed) +
+                                                   static_cast<double>(samplesToRender) / m_currentSampleRate,
+                                               std::memory_order_relaxed);
+        }
+        else {
+            m_projectPlayPositionSeconds.store(hostBlockStartSeconds +
+                                                   static_cast<double>(samplesRendered) / m_currentSampleRate,
+                                               std::memory_order_relaxed);
+        }
+    }
+
+    // Update loop progress for UI
+    const double cycleDuration = blockEndMs - blockStartMs;
+    if (cycleDuration > 0.0) {
+        const double curMs = (static_cast<double>(m_bgmPlayer.getCurrentPositionSamples()) / fileSampleRate) * 1000.0;
+        float progress = static_cast<float>((curMs - blockStartMs) / cycleDuration);
+        m_bgmLoopProgress.store(std::clamp(progress, 0.0f, 1.0f), std::memory_order_relaxed);
+    }
 }
 
 //==============================================================================
-juce::AudioProcessorEditor *KiraNastroProcessor::createEditor() {
-  return new KiraNastroEditor(*this);
+juce::AudioProcessorEditor *KiraNastroProcessor::createEditor()
+{
+    return new KiraNastroEditor(*this);
 }
 
 //==============================================================================
-void KiraNastroProcessor::getStateInformation(
-    juce::MemoryBlock & /*destData*/) {
-  // TODO Phase 6: save reclist path, BGM path, currentEntryIndex, settings
+void KiraNastroProcessor::getStateInformation(juce::MemoryBlock & /*destData*/)
+{
+    // TODO Phase 6: save reclist path, BGM path, currentEntryIndex, settings
 }
 
-void KiraNastroProcessor::setStateInformation(const void * /*data*/,
-                                              int /*sizeInBytes*/) {
-  // TODO Phase 6: restore session state
+void KiraNastroProcessor::setStateInformation(const void * /*data*/, int /*sizeInBytes*/)
+{
+    // TODO Phase 6: restore session state
 }
 
 //==============================================================================
 // Data loading
 
-bool KiraNastroProcessor::loadReclist(const juce::File &reclistFile) {
-  auto result = ReclistParser::load(reclistFile);
+bool KiraNastroProcessor::loadReclist(const juce::File &reclistFile)
+{
+    auto result = ReclistParser::load(reclistFile);
 
-  juce::ScopedLock sl(dataLock);
-  reclistData = result;
+    juce::ScopedLock sl(m_dataLock);
+    m_reclistData = result;
 
-  if (result.has_value()) {
-    currentEntryIndex.store(0);
-    totalEntries.store(static_cast<int>(result->entries.size()));
-    return true;
-  }
-
-  totalEntries.store(0);
-  return false;
-}
-
-bool KiraNastroProcessor::loadGuideBGM(const juce::File &wavFile) {
-  auto timingResult = GuideBGMParser::load(wavFile);
-  bool wavOk = bgmPlayer.loadFile(wavFile);
-
-  {
-    juce::ScopedLock sl(dataLock);
-    bgmData = timingResult;
-  }
-
-  // Compute BGM block boundaries from timing nodes.
-  // Block start = first node's time.
-  // Block end   = time of the node that has a repeatTargetNodeIndex set.
-  bgmBlockStartMs = 0.0;
-  bgmBlockEndMs = 0.0;
-  recordingStartOffsetMs = 0.0;
-  recordingWindowDurationMs = 0.0;
-
-  if (timingResult.has_value() && !timingResult->nodes.empty()) {
-    bgmBlockStartMs = timingResult->nodes.front().timeMs;
-
-    // Find the node with repeatTargetNodeIndex >= 0 (typically the last node)
-    for (auto it = timingResult->nodes.rbegin();
-         it != timingResult->nodes.rend(); ++it) {
-      if (it->repeatTargetNodeIndex >= 0) {
-        bgmBlockEndMs = it->timeMs;
-        break;
-      }
+    if (result.has_value()) {
+        m_currentEntryIndex.store(0);
+        m_totalEntries.store(static_cast<int>(result->entries.size()));
+        return true;
     }
 
-    // Fallback: if no repeat node found, use the last node's time
-    if (bgmBlockEndMs <= bgmBlockStartMs) {
-      bgmBlockEndMs = timingResult->nodes.back().timeMs;
+    m_totalEntries.store(0);
+    return false;
+}
+
+bool KiraNastroProcessor::loadGuideBGM(const juce::File &wavFile)
+{
+    auto timingResult = GuideBGMParser::load(wavFile);
+    bool wavOk = m_bgmPlayer.loadFile(wavFile);
+
+    {
+        juce::ScopedLock sl(m_dataLock);
+        m_bgmData = timingResult;
     }
 
-    // Find recording window offsets
-    double recordingStartAbsMs = bgmBlockStartMs; // fallback: recording starts at block start
-    for (const auto& node : timingResult->nodes) {
-      if (node.isRecordingStart)
-        recordingStartAbsMs = node.timeMs;
-      if (node.isRecordingEnd && node.timeMs > recordingStartAbsMs) {
-        recordingStartOffsetMs   = recordingStartAbsMs - bgmBlockStartMs;
-        recordingWindowDurationMs = node.timeMs - recordingStartAbsMs;
-        break;
-      }
+    // Compute BGM block boundaries from timing nodes.
+    // Block start = first node's time.
+    // Block end   = time of the node that has a repeatTargetNodeIndex set.
+    m_bgmBlockStartMs = 0.0;
+    m_bgmBlockEndMs = 0.0;
+    m_recordingStartOffsetMs = 0.0;
+    m_recordingWindowDurationMs = 0.0;
+
+    if (timingResult.has_value() && !timingResult->nodes.empty()) {
+        m_bgmBlockStartMs = timingResult->nodes.front().timeMs;
+
+        // Find the node with repeatTargetNodeIndex >= 0 (typically the last node)
+        for (auto it = timingResult->nodes.rbegin(); it != timingResult->nodes.rend(); ++it) {
+            if (it->repeatTargetNodeIndex >= 0) {
+                m_bgmBlockEndMs = it->timeMs;
+                break;
+            }
+        }
+
+        // Fallback: if no repeat node found, use the last node's time
+        if (m_bgmBlockEndMs <= m_bgmBlockStartMs) {
+            m_bgmBlockEndMs = timingResult->nodes.back().timeMs;
+        }
+
+        // Find recording window offsets
+        double recordingStartAbsMs = m_bgmBlockStartMs; // fallback: recording starts at block start
+        for (const auto &node : timingResult->nodes) {
+            if (node.isRecordingStart)
+                recordingStartAbsMs = node.timeMs;
+            if (node.isRecordingEnd && node.timeMs > recordingStartAbsMs) {
+                m_recordingStartOffsetMs = recordingStartAbsMs - m_bgmBlockStartMs;
+                m_recordingWindowDurationMs = node.timeMs - recordingStartAbsMs;
+                break;
+            }
+        }
     }
-  }
 
-  // Seek to block start so playback begins at the right position
-  if (wavOk && bgmBlockEndMs > bgmBlockStartMs) {
-    const double fileSR = static_cast<double>(bgmPlayer.getSampleRate());
-    const int64_t startSamples =
-        static_cast<int64_t>((bgmBlockStartMs / 1000.0) * fileSR);
-    bgmPlayer.seekToSample(startSamples);
-  }
+    // Seek to block start so playback begins at the right position
+    if (wavOk && m_bgmBlockEndMs > m_bgmBlockStartMs) {
+        const double fileSR = static_cast<double>(m_bgmPlayer.getSampleRate());
+        const int64_t startSamples = static_cast<int64_t>((m_bgmBlockStartMs / 1000.0) * fileSR);
+        m_bgmPlayer.seekToSample(startSamples);
+    }
 
-  return wavOk;
+    return wavOk;
 }
 
-std::optional<ReclistData> KiraNastroProcessor::getReclistData() const {
-  juce::ScopedLock sl(dataLock);
-  return reclistData;
+std::optional<ReclistData> KiraNastroProcessor::getReclistData() const
+{
+    juce::ScopedLock sl(m_dataLock);
+    return m_reclistData;
 }
 
-KiraNastroProcessor::EntryInfo
-KiraNastroProcessor::getCurrentEntryInfo() const {
-  juce::ScopedLock sl(dataLock);
-  EntryInfo info;
-  info.index = currentEntryIndex.load();
-  info.total = totalEntries.load();
+KiraNastroProcessor::EntryInfo KiraNastroProcessor::getCurrentEntryInfo() const
+{
+    juce::ScopedLock sl(m_dataLock);
+    EntryInfo info;
+    info.index = m_currentEntryIndex.load();
+    info.total = m_totalEntries.load();
 
-  if (reclistData.has_value() && info.index >= 0 &&
-      static_cast<size_t>(info.index) < reclistData->entries.size()) {
-    info.name = reclistData->entries[static_cast<size_t>(info.index)];
-    if (reclistData->comments.count(info.name))
-      info.comment = reclistData->comments.at(info.name);
-  }
-  return info;
+    if (m_reclistData.has_value() && info.index >= 0 && static_cast<size_t>(info.index) < m_reclistData->entries.size())
+    {
+        info.name = m_reclistData->entries[static_cast<size_t>(info.index)];
+        if (m_reclistData->comments.count(info.name))
+            info.comment = m_reclistData->comments.at(info.name);
+    }
+    return info;
 }
 
-KiraNastroProcessor::EntryInfo
-KiraNastroProcessor::getNextEntryInfo() const {
-  juce::ScopedLock sl(dataLock);
-  EntryInfo info;
-  info.index = currentEntryIndex.load() + 1;
-  info.total = totalEntries.load();
+KiraNastroProcessor::EntryInfo KiraNastroProcessor::getNextEntryInfo() const
+{
+    juce::ScopedLock sl(m_dataLock);
+    EntryInfo info;
+    info.index = m_currentEntryIndex.load() + 1;
+    info.total = m_totalEntries.load();
 
-  if (reclistData.has_value() && info.index >= 0 &&
-      static_cast<size_t>(info.index) < reclistData->entries.size()) {
-    info.name = reclistData->entries[static_cast<size_t>(info.index)];
-    if (reclistData->comments.count(info.name))
-      info.comment = reclistData->comments.at(info.name);
-  }
-  return info;
+    if (m_reclistData.has_value() && info.index >= 0 && static_cast<size_t>(info.index) < m_reclistData->entries.size())
+    {
+        info.name = m_reclistData->entries[static_cast<size_t>(info.index)];
+        if (m_reclistData->comments.count(info.name))
+            info.comment = m_reclistData->comments.at(info.name);
+    }
+    return info;
 }
 
-std::optional<GuideBGMData> KiraNastroProcessor::getGuideBGMData() const {
-  juce::ScopedLock sl(dataLock);
-  return bgmData;
+std::optional<GuideBGMData> KiraNastroProcessor::getGuideBGMData() const
+{
+    juce::ScopedLock sl(m_dataLock);
+    return m_bgmData;
 }
 
-bool KiraNastroProcessor::isBGMLoaded() const { return bgmPlayer.isLoaded(); }
-
-void KiraNastroProcessor::startBGM() {
-  // Play from the current position (set by loadGuideBGM or seekBGM).
-  // Do NOT reset to blockStart here — that would undo any user seek.
-  bgmPlayer.play();
-  isBGMPlayingFlag = true;
+bool KiraNastroProcessor::isBGMLoaded() const
+{
+    return m_bgmPlayer.isLoaded();
 }
 
-void KiraNastroProcessor::stopBGM() {
-  bgmPlayer.stop();
-  isBGMPlayingFlag = false;
-  // If we want a true 'Stop' behavior like OREMO, we should reset.
-  // But let's keep it as Pause for now to satisfy the user's resume need.
-  // Actually, let's keep it as is.
+void KiraNastroProcessor::startBGM()
+{
+    // Play from the current position (set by loadGuideBGM or seekBGM).
+    // Do NOT reset to blockStart here — that would undo any user seek.
+    m_bgmPlayer.play();
+    m_isBGMPlayingFlag = true;
 }
 
-bool KiraNastroProcessor::isBGMPlaying() const { return isBGMPlayingFlag; }
-
-double KiraNastroProcessor::getBGMLengthSeconds() const {
-  if (bgmPlayer.isLoaded() && bgmBlockEndMs > bgmBlockStartMs) {
-    return (bgmBlockEndMs - bgmBlockStartMs) / 1000.0;
-  }
-  return 0.0;
+void KiraNastroProcessor::stopBGM()
+{
+    m_bgmPlayer.stop();
+    m_isBGMPlayingFlag = false;
+    // If we want a true 'Stop' behavior like OREMO, we should reset.
+    // But let's keep it as Pause for now to satisfy the user's resume need.
+    // Actually, let's keep it as is.
 }
 
-void KiraNastroProcessor::seekBGM(double seconds) {
-  if (!bgmPlayer.isLoaded())
-    return;
-
-  const double blockDurationMs = bgmBlockEndMs - bgmBlockStartMs;
-  if (blockDurationMs <= 0.0)
-    return;
-
-  double sessionMs = std::max(seconds * 1000.0, 0.0);
-
-  // Map session time to the loop: each block cycle corresponds to one entry.
-  int entryIndex = static_cast<int>(sessionMs / blockDurationMs);
-  double offsetWithinBlock = std::fmod(sessionMs, blockDurationMs);
-  double targetBgmMs = bgmBlockStartMs + offsetWithinBlock;
-
-  // Clamp entry index to reclist bounds
-  const int total = totalEntries.load();
-  if (total > 0) {
-    currentEntryIndex.store(std::clamp(entryIndex, 0, total - 1));
-  }
-
-  const double fileSR = static_cast<double>(bgmPlayer.getSampleRate());
-  const int64_t targetSamples =
-      static_cast<int64_t>((targetBgmMs / 1000.0) * fileSR);
-  bgmPlayer.seekToSample(targetSamples);
-  projectPlayPositionSeconds.store(seconds, std::memory_order_relaxed);
-
-  // Update loop progress so the timing indicator reflects the seek immediately,
-  // even when paused (processBlock only runs while playing).
-  const double cycleDuration = bgmBlockEndMs - bgmBlockStartMs;
-  if (cycleDuration > 0.0) {
-    const float progress =
-        static_cast<float>((targetBgmMs - bgmBlockStartMs) / cycleDuration);
-    bgmLoopProgress.store(std::clamp(progress, 0.0f, 1.0f),
-                          std::memory_order_relaxed);
-  }
+bool KiraNastroProcessor::isBGMPlaying() const
+{
+    return m_isBGMPlayingFlag;
 }
 
-KiraNastroProcessor::DescExportParams
-KiraNastroProcessor::getDescExportParams() const {
-  DescExportParams p;
-  juce::ScopedLock sl(dataLock);
-  if (reclistData.has_value())
-    p.entryNames = reclistData->entries;
-  p.blockDurationSec        = (bgmBlockEndMs - bgmBlockStartMs) / 1000.0;
-  p.recordingStartOffsetSec = recordingStartOffsetMs / 1000.0;
-  p.recordingWindowDurationSec = recordingWindowDurationMs / 1000.0;
-  p.sampleRate = bgmPlayer.getSampleRate() > 0
-                     ? static_cast<double>(bgmPlayer.getSampleRate())
-                     : 44100.0;
-  return p;
+double KiraNastroProcessor::getBGMLengthSeconds() const
+{
+    if (m_bgmPlayer.isLoaded() && m_bgmBlockEndMs > m_bgmBlockStartMs) {
+        return (m_bgmBlockEndMs - m_bgmBlockStartMs) / 1000.0;
+    }
+    return 0.0;
+}
+
+void KiraNastroProcessor::seekBGM(double seconds)
+{
+    if (!m_bgmPlayer.isLoaded())
+        return;
+
+    const double blockDurationMs = m_bgmBlockEndMs - m_bgmBlockStartMs;
+    if (blockDurationMs <= 0.0)
+        return;
+
+    double sessionMs = std::max(seconds * 1000.0, 0.0);
+
+    // Map session time to the loop: each block cycle corresponds to one entry.
+    int entryIndex = static_cast<int>(sessionMs / blockDurationMs);
+    double offsetWithinBlock = std::fmod(sessionMs, blockDurationMs);
+    double targetBgmMs = m_bgmBlockStartMs + offsetWithinBlock;
+
+    // Clamp entry index to reclist bounds
+    const int total = m_totalEntries.load();
+    if (total > 0) {
+        m_currentEntryIndex.store(std::clamp(entryIndex, 0, total - 1));
+    }
+
+    const double fileSR = static_cast<double>(m_bgmPlayer.getSampleRate());
+    const int64_t targetSamples = static_cast<int64_t>((targetBgmMs / 1000.0) * fileSR);
+    m_bgmPlayer.seekToSample(targetSamples);
+    m_projectPlayPositionSeconds.store(seconds, std::memory_order_relaxed);
+
+    // Update loop progress so the timing indicator reflects the seek immediately,
+    // even when paused (processBlock only runs while playing).
+    const double cycleDuration = m_bgmBlockEndMs - m_bgmBlockStartMs;
+    if (cycleDuration > 0.0) {
+        const float progress = static_cast<float>((targetBgmMs - m_bgmBlockStartMs) / cycleDuration);
+        m_bgmLoopProgress.store(std::clamp(progress, 0.0f, 1.0f), std::memory_order_relaxed);
+    }
+}
+
+KiraNastroProcessor::DescExportParams KiraNastroProcessor::getDescExportParams() const
+{
+    DescExportParams p;
+    juce::ScopedLock sl(m_dataLock);
+    if (m_reclistData.has_value())
+        p.entryNames = m_reclistData->entries;
+    p.blockDurationSec = (m_bgmBlockEndMs - m_bgmBlockStartMs) / 1000.0;
+    p.recordingStartOffsetSec = m_recordingStartOffsetMs / 1000.0;
+    p.recordingWindowDurationSec = m_recordingWindowDurationMs / 1000.0;
+    p.sampleRate = m_bgmPlayer.getSampleRate() > 0 ? static_cast<double>(m_bgmPlayer.getSampleRate()) : 44100.0;
+    return p;
 }
 
 //==============================================================================
 // Plugin entry point — required by JUCE
-juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter() {
-  return new KiraNastroProcessor();
+juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter()
+{
+    return new KiraNastroProcessor();
 }

@@ -10,7 +10,7 @@ public:
     MainComponent() = default;
     ~MainComponent() override = default;
 
-    void paint(juce::Graphics& g) override;
+    void paint(juce::Graphics &g) override;
     void resized() override;
 
     // TODO Phase 4: add child components (labels, TimingIndicator, bottom bar)
