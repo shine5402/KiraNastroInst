@@ -34,6 +34,7 @@ private:
   // File choosers
   std::unique_ptr<juce::FileChooser> reclistChooser;
   std::unique_ptr<juce::FileChooser> bgmChooser;
+  std::unique_ptr<juce::FileChooser> descChooser;
 
   // Hamburger menu button (always present)
   std::unique_ptr<juce::DrawableButton> menuButton;

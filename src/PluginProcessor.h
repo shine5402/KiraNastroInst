@@ -55,6 +55,19 @@ public:
   std::optional<GuideBGMData> getGuideBGMData() const;
   bool isBGMLoaded() const;
 
+  struct DescExportParams {
+    std::vector<juce::String> entryNames;
+    double blockDurationSec       = 0.0;
+    double recordingStartOffsetSec = 0.0;
+    double recordingWindowDurationSec = 0.0;
+    double sampleRate             = 44100.0;
+    bool isValid() const {
+      return !entryNames.empty() && blockDurationSec > 0.0 &&
+             recordingWindowDurationSec > 0.0;
+    }
+  };
+  DescExportParams getDescExportParams() const;
+
   struct EntryInfo {
     juce::String name;
     juce::String comment;
@@ -92,6 +105,10 @@ private:
   // The first timing node defines blockStart; the node with repeatTargetNodeIndex defines blockEnd.
   double bgmBlockStartMs = 0.0;
   double bgmBlockEndMs   = 0.0;
+
+  // Recording window offsets within the BGM block (in milliseconds)
+  double recordingStartOffsetMs     = 0.0; // ms from bgmBlockStart to isRecordingStart node
+  double recordingWindowDurationMs  = 0.0; // duration of recording window in ms
 
   bool isBGMPlayingFlag = false;
 

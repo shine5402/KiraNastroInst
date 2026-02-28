@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
 #include "BinaryDataImages.h"
+#include "data/LabelExporter.h"
 #include "utils/Fonts.h"
 #include "utils/Icons.h"
 #include <cmath>
@@ -286,6 +287,10 @@ void KiraNastroEditor::showMenu() {
   menu.addItem(1, "Load Reclist...");
   menu.addItem(2, "Load BGM...");
   menu.addSeparator();
+  const bool canExport = audioProcessor.isBGMLoaded() &&
+                         audioProcessor.totalEntries.load() > 0;
+  menu.addItem(4, "Export KiraWavTar Desc...", canExport);
+  menu.addSeparator();
   const bool dark = lookAndFeel.getDarkMode();
   menu.addItem(3, dark ? "Switch to Light Mode" : "Switch to Dark Mode");
 
@@ -322,6 +327,73 @@ void KiraNastroEditor::showMenu() {
                          lookAndFeel.setDarkMode(!lookAndFeel.getDarkMode());
                          reloadChipIcons();
                          repaint();
+                       } else if (result == 4) {
+                         auto params = audioProcessor.getDescExportParams();
+                         if (!params.isValid()) {
+                           juce::AlertWindow::showMessageBoxAsync(
+                               juce::MessageBoxIconType::WarningIcon,
+                               "Cannot Export",
+                               "Please load both a reclist and a guide BGM "
+                               "before exporting.",
+                               "OK", this);
+                           return;
+                         }
+
+                         descChooser = std::make_unique<juce::FileChooser>(
+                             "Save KiraWavTar Description File",
+                             juce::File::getSpecialLocation(
+                                 juce::File::userDesktopDirectory),
+                             "*.kirawavtar-desc.json");
+                         descChooser->launchAsync(
+                             juce::FileBrowserComponent::saveMode |
+                                 juce::FileBrowserComponent::canSelectFiles,
+                             [this, params](const juce::FileChooser &f) {
+                               auto file = f.getResult();
+                               if (!file.getFullPathName().isEmpty()) {
+                                 juce::String errMsg;
+                                 bool ok = LabelExporter::exportToFile(
+                                     file, params, errMsg);
+                                 if (ok) {
+                                   const int n =
+                                       static_cast<int>(params.entryNames.size());
+                                   const double totalSec =
+                                       n * params.blockDurationSec +
+                                       params.recordingStartOffsetSec +
+                                       params.recordingWindowDurationSec;
+                                   const int totalMin =
+                                       static_cast<int>(totalSec / 60.0);
+                                   const double remSec =
+                                       totalSec - totalMin * 60.0;
+                                   const juce::String totalStr =
+                                       juce::String::formatted("%d:%05.2f",
+                                                               totalMin, remSec);
+                                   const int sr =
+                                       static_cast<int>(std::round(params.sampleRate));
+
+                                   juce::AlertWindow::showMessageBoxAsync(
+                                       juce::MessageBoxIconType::InfoIcon,
+                                       "Export Successful",
+                                       "Description file saved.\n\n"
+                                       "Next steps:\n"
+                                       "1. In your DAW, export your recording as a WAV file\n"
+                                       "   starting from time 0:00.0 to at least " +
+                                           totalStr + ".\n"
+                                       "2. Export at " + juce::String(sr) +
+                                           " Hz sample rate\n"
+                                           "   (matching the guide BGM — required until\n"
+                                           "   KiraWavTar auto-detects source sample rate).\n"
+                                       "3. Place the desc file in the same folder as your WAV,\n"
+                                       "   named <yourwav>.kirawavtar-desc.json.\n"
+                                       "4. Open KiraWavTar and select the WAV file to extract.",
+                                       "OK", this);
+                                 } else {
+                                   juce::AlertWindow::showMessageBoxAsync(
+                                       juce::MessageBoxIconType::WarningIcon,
+                                       "Export Failed", errMsg, "OK", this);
+                                 }
+                               }
+                               descChooser.reset();
+                             });
                        }
                      });
 }

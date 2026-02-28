@@ -171,6 +171,8 @@ bool KiraNastroProcessor::loadGuideBGM(const juce::File &wavFile) {
   // Block end   = time of the node that has a repeatTargetNodeIndex set.
   bgmBlockStartMs = 0.0;
   bgmBlockEndMs = 0.0;
+  recordingStartOffsetMs = 0.0;
+  recordingWindowDurationMs = 0.0;
 
   if (timingResult.has_value() && !timingResult->nodes.empty()) {
     bgmBlockStartMs = timingResult->nodes.front().timeMs;
@@ -187,6 +189,18 @@ bool KiraNastroProcessor::loadGuideBGM(const juce::File &wavFile) {
     // Fallback: if no repeat node found, use the last node's time
     if (bgmBlockEndMs <= bgmBlockStartMs) {
       bgmBlockEndMs = timingResult->nodes.back().timeMs;
+    }
+
+    // Find recording window offsets
+    double recordingStartAbsMs = bgmBlockStartMs; // fallback: recording starts at block start
+    for (const auto& node : timingResult->nodes) {
+      if (node.isRecordingStart)
+        recordingStartAbsMs = node.timeMs;
+      if (node.isRecordingEnd && node.timeMs > recordingStartAbsMs) {
+        recordingStartOffsetMs   = recordingStartAbsMs - bgmBlockStartMs;
+        recordingWindowDurationMs = node.timeMs - recordingStartAbsMs;
+        break;
+      }
     }
   }
 
@@ -305,6 +319,21 @@ void KiraNastroProcessor::seekBGM(double seconds) {
     bgmLoopProgress.store(std::clamp(progress, 0.0f, 1.0f),
                           std::memory_order_relaxed);
   }
+}
+
+KiraNastroProcessor::DescExportParams
+KiraNastroProcessor::getDescExportParams() const {
+  DescExportParams p;
+  juce::ScopedLock sl(dataLock);
+  if (reclistData.has_value())
+    p.entryNames = reclistData->entries;
+  p.blockDurationSec        = (bgmBlockEndMs - bgmBlockStartMs) / 1000.0;
+  p.recordingStartOffsetSec = recordingStartOffsetMs / 1000.0;
+  p.recordingWindowDurationSec = recordingWindowDurationMs / 1000.0;
+  p.sampleRate = bgmPlayer.getSampleRate() > 0
+                     ? static_cast<double>(bgmPlayer.getSampleRate())
+                     : 44100.0;
+  return p;
 }
 
 //==============================================================================
