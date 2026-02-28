@@ -27,7 +27,7 @@ TEST_CASE("BGMPlayer: unload() on fresh player is a no-op", "[BGMPlayer]") {
 // ── loadFile() error cases
 // ────────────────────────────────────────────────────
 
-TEST_CASE("BGMPlayer: non-existent file → loadFile returns false",
+TEST_CASE("BGMPlayer: non-existent file -> loadFile returns false",
           "[BGMPlayer]") {
   BGMPlayer player;
   bool ok = player.loadFile(juce::File("/does/not/exist.wav"));
@@ -63,7 +63,7 @@ TEST_CASE("BGMPlayer: loaded WAV has stereo channels", "[BGMPlayer]") {
   CHECK(player.getNumChannels() == 2);
 }
 
-TEST_CASE("BGMPlayer: sample count consistent with sample rate × duration",
+TEST_CASE("BGMPlayer: sample count consistent with sample rate x duration",
           "[BGMPlayer]") {
   juce::File f(kJazzWavPath);
   if (!f.existsAsFile())
@@ -72,7 +72,7 @@ TEST_CASE("BGMPlayer: sample count consistent with sample rate × duration",
   BGMPlayer player;
   player.loadFile(f);
 
-  // Jazz-100-A BGM is ~20 s — sanity-check it's between 5 s and 60 s
+  // Jazz-100-A BGM is ~20 s - sanity-check it's between 5 s and 60 s
   double durationSeconds = static_cast<double>(player.getTotalSamples()) /
                            static_cast<double>(player.getSampleRate());
   CHECK(durationSeconds > 5.0);

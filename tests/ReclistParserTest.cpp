@@ -9,7 +9,7 @@ static constexpr const char* k8MoraUtf8Path = TEST_DATA_DIR "/8mora-utf8.txt";
 
 // ── Error cases ───────────────────────────────────────────────────────────────
 
-TEST_CASE("ReclistParser: non-existent file → nullopt", "[ReclistParser]")
+TEST_CASE("ReclistParser: non-existent file -> nullopt", "[ReclistParser]")
 {
     auto result = ReclistParser::load(juce::File("/does/not/exist.txt"));
     CHECK_FALSE(result.has_value());
@@ -17,7 +17,7 @@ TEST_CASE("ReclistParser: non-existent file → nullopt", "[ReclistParser]")
 
 // ── 8mora.txt (Shift-JIS, entries on individual lines) ────────────────────────
 
-TEST_CASE("ReclistParser: 8mora.txt — loads correct number of entries", "[ReclistParser]")
+TEST_CASE("ReclistParser: 8mora.txt - loads correct number of entries", "[ReclistParser]")
 {
     juce::File f(k8MoraPath);
     if (!f.existsAsFile()) SKIP("8mora.txt not found");
@@ -30,7 +30,7 @@ TEST_CASE("ReclistParser: 8mora.txt — loads correct number of entries", "[Recl
     CHECK(result->entries.size() == 153);
 }
 
-TEST_CASE("ReclistParser: 8mora.txt — every entry is non-empty and starts with '_'",
+TEST_CASE("ReclistParser: 8mora.txt - every entry is non-empty and starts with '_'",
           "[ReclistParser]")
 {
     juce::File f(k8MoraPath);
@@ -46,7 +46,7 @@ TEST_CASE("ReclistParser: 8mora.txt — every entry is non-empty and starts with
     }
 }
 
-TEST_CASE("ReclistParser: 8mora.txt — comment sidecar is loaded", "[ReclistParser]")
+TEST_CASE("ReclistParser: 8mora.txt - comment sidecar is loaded", "[ReclistParser]")
 {
     juce::File f(k8MoraPath);
     if (!f.existsAsFile()) SKIP("8mora.txt not found");
@@ -57,7 +57,7 @@ TEST_CASE("ReclistParser: 8mora.txt — comment sidecar is loaded", "[ReclistPar
     CHECK_FALSE(result->comments.empty());
 }
 
-TEST_CASE("ReclistParser: 8mora.txt — each comment key appears in entries", "[ReclistParser]")
+TEST_CASE("ReclistParser: 8mora.txt - each comment key appears in entries", "[ReclistParser]")
 {
     juce::File f(k8MoraPath);
     if (!f.existsAsFile()) SKIP("8mora.txt not found");
@@ -112,7 +112,7 @@ TEST_CASE("ReclistParser: blank lines and extra whitespace are ignored", "[Recli
     CHECK(result->entries.size() == 3);
 }
 
-TEST_CASE("ReclistParser: empty file → nullopt", "[ReclistParser]")
+TEST_CASE("ReclistParser: empty file -> nullopt", "[ReclistParser]")
 {
     juce::TemporaryFile tmp(".txt");
     tmp.getFile().replaceWithText("", false, false, "\n");
@@ -121,7 +121,7 @@ TEST_CASE("ReclistParser: empty file → nullopt", "[ReclistParser]")
     CHECK_FALSE(result.has_value());
 }
 
-TEST_CASE("ReclistParser: comment file — tab separator", "[ReclistParser]")
+TEST_CASE("ReclistParser: comment file - tab separator", "[ReclistParser]")
 {
     juce::TemporaryFile tmp(".txt");
     auto base = tmp.getFile().getFileNameWithoutExtension();
@@ -140,7 +140,7 @@ TEST_CASE("ReclistParser: comment file — tab separator", "[ReclistParser]")
     commentFile.deleteFile();
 }
 
-TEST_CASE("ReclistParser: comment file — '#' lines skipped", "[ReclistParser]")
+TEST_CASE("ReclistParser: comment file - '#' lines skipped", "[ReclistParser]")
 {
     juce::TemporaryFile tmp(".txt");
     auto base = tmp.getFile().getFileNameWithoutExtension();
@@ -163,7 +163,7 @@ TEST_CASE("ReclistParser: comment file — '#' lines skipped", "[ReclistParser]"
 // 8mora-utf8.txt is an iconv-converted copy of 8mora.txt.
 // Both must decode to identical in-memory content.
 
-TEST_CASE("ReclistParser: 8mora-utf8.txt — same entry count as Shift-JIS version",
+TEST_CASE("ReclistParser: 8mora-utf8.txt - same entry count as Shift-JIS version",
           "[ReclistParser][encoding]")
 {
     juce::File f(k8MoraUtf8Path);

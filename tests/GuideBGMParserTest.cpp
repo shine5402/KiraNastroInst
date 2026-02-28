@@ -10,13 +10,13 @@ static constexpr const char* kJazzTxtUtf8Path = TEST_DATA_DIR "/Jazz-100-A-utf8.
 
 // ── Error cases ───────────────────────────────────────────────────────────────
 
-TEST_CASE("GuideBGMParser: non-existent timing file → nullopt", "[GuideBGMParser]")
+TEST_CASE("GuideBGMParser: non-existent timing file -> nullopt", "[GuideBGMParser]")
 {
     auto result = GuideBGMParser::loadFromTimingFile(juce::File("/does/not/exist.txt"));
     CHECK_FALSE(result.has_value());
 }
 
-TEST_CASE("GuideBGMParser: load() with non-existent wav → nullopt", "[GuideBGMParser]")
+TEST_CASE("GuideBGMParser: load() with non-existent wav -> nullopt", "[GuideBGMParser]")
 {
     auto result = GuideBGMParser::load(juce::File("/does/not/exist.wav"));
     CHECK_FALSE(result.has_value());
@@ -36,7 +36,7 @@ TEST_CASE("GuideBGMParser: Jazz-100-A.txt parses 6 nodes", "[GuideBGMParser]")
     CHECK(result->nodes.size() == 6);
 }
 
-TEST_CASE("GuideBGMParser: Jazz-100-A.txt — times are positive and increasing",
+TEST_CASE("GuideBGMParser: Jazz-100-A.txt - times are positive and increasing",
           "[GuideBGMParser]")
 {
     juce::File f(kJazzTxtPath);
@@ -53,7 +53,7 @@ TEST_CASE("GuideBGMParser: Jazz-100-A.txt — times are positive and increasing"
     }
 }
 
-TEST_CASE("GuideBGMParser: Jazz-100-A.txt — node[1] is recording start", "[GuideBGMParser]")
+TEST_CASE("GuideBGMParser: Jazz-100-A.txt - node[1] is recording start", "[GuideBGMParser]")
 {
     juce::File f(kJazzTxtPath);
     if (!f.existsAsFile()) SKIP("Jazz-100-A.txt not found");
@@ -68,7 +68,7 @@ TEST_CASE("GuideBGMParser: Jazz-100-A.txt — node[1] is recording start", "[Gui
     CHECK(node.isSwitching      == false);
 }
 
-TEST_CASE("GuideBGMParser: Jazz-100-A.txt — node[4] is recording end", "[GuideBGMParser]")
+TEST_CASE("GuideBGMParser: Jazz-100-A.txt - node[4] is recording end", "[GuideBGMParser]")
 {
     juce::File f(kJazzTxtPath);
     if (!f.existsAsFile()) SKIP("Jazz-100-A.txt not found");
@@ -83,7 +83,7 @@ TEST_CASE("GuideBGMParser: Jazz-100-A.txt — node[4] is recording end", "[Guide
     CHECK(node.isSwitching      == false);
 }
 
-TEST_CASE("GuideBGMParser: Jazz-100-A.txt — node[5] switches and loops to node[0]",
+TEST_CASE("GuideBGMParser: Jazz-100-A.txt - node[5] switches and loops to node[0]",
           "[GuideBGMParser]")
 {
     juce::File f(kJazzTxtPath);
@@ -95,7 +95,7 @@ TEST_CASE("GuideBGMParser: Jazz-100-A.txt — node[5] switches and loops to node
 
     const auto& node = result->nodes[5]; // row 6 in file
     CHECK(node.isSwitching           == true);
-    CHECK(node.repeatTargetNodeIndex == 0); // repeatTarget=1 in file → 0-indexed
+    CHECK(node.repeatTargetNodeIndex == 0); // repeatTarget=1 in file -> 0-indexed
 }
 
 TEST_CASE("GuideBGMParser: load() delegates to sibling .txt of .wav", "[GuideBGMParser]")
@@ -120,7 +120,7 @@ TEST_CASE("GuideBGMParser: rejects file with wrong/missing unit line", "[GuideBG
     CHECK_FALSE(result.has_value());
 }
 
-TEST_CASE("GuideBGMParser: msec unit — times stored as-is", "[GuideBGMParser]")
+TEST_CASE("GuideBGMParser: msec unit - times stored as-is", "[GuideBGMParser]")
 {
     juce::TemporaryFile tmp(".txt");
     tmp.getFile().replaceWithText(
@@ -138,7 +138,7 @@ TEST_CASE("GuideBGMParser: msec unit — times stored as-is", "[GuideBGMParser]"
     CHECK(result->nodes[1].isRecordingEnd   == true);
 }
 
-TEST_CASE("GuideBGMParser: sec unit — times multiplied by 1000", "[GuideBGMParser]")
+TEST_CASE("GuideBGMParser: sec unit - times multiplied by 1000", "[GuideBGMParser]")
 {
     juce::TemporaryFile tmp(".txt");
     tmp.getFile().replaceWithText(
@@ -154,7 +154,7 @@ TEST_CASE("GuideBGMParser: sec unit — times multiplied by 1000", "[GuideBGMPar
     CHECK(result->nodes[1].timeMs == Catch::Approx(3000.0));
 }
 
-TEST_CASE("GuideBGMParser: repeatTarget 0 in file → -1 (no repeat)", "[GuideBGMParser]")
+TEST_CASE("GuideBGMParser: repeatTarget 0 in file -> -1 (no repeat)", "[GuideBGMParser]")
 {
     juce::TemporaryFile tmp(".txt");
     tmp.getFile().replaceWithText(
@@ -167,7 +167,7 @@ TEST_CASE("GuideBGMParser: repeatTarget 0 in file → -1 (no repeat)", "[GuideBG
     CHECK(result->nodes[0].repeatTargetNodeIndex == -1);
 }
 
-TEST_CASE("GuideBGMParser: repeatTarget N in file → N-1 (0-indexed)", "[GuideBGMParser]")
+TEST_CASE("GuideBGMParser: repeatTarget N in file -> N-1 (0-indexed)", "[GuideBGMParser]")
 {
     juce::TemporaryFile tmp(".txt");
     tmp.getFile().replaceWithText(
@@ -213,7 +213,7 @@ TEST_CASE("GuideBGMParser: trailing comment field is captured", "[GuideBGMParser
 // Jazz-100-A-utf8.txt is an iconv-converted copy of Jazz-100-A.txt.
 // Both must decode to identical node data (including Japanese comment strings).
 
-TEST_CASE("GuideBGMParser: Jazz-100-A-utf8.txt — same 6 nodes as Shift-JIS version",
+TEST_CASE("GuideBGMParser: Jazz-100-A-utf8.txt - same 6 nodes as Shift-JIS version",
           "[GuideBGMParser][encoding]")
 {
     juce::File f(kJazzTxtUtf8Path);
@@ -251,7 +251,7 @@ TEST_CASE("GuideBGMParser: UTF-8 and Shift-JIS versions decode to identical node
     }
 }
 
-TEST_CASE("GuideBGMParser: UTF-8 timing file — Japanese comment decodes correctly",
+TEST_CASE("GuideBGMParser: UTF-8 timing file - Japanese comment decodes correctly",
           "[GuideBGMParser][encoding]")
 {
     juce::File f(kJazzTxtUtf8Path);
@@ -261,10 +261,10 @@ TEST_CASE("GuideBGMParser: UTF-8 timing file — Japanese comment decodes correc
     REQUIRE(result.has_value());
     REQUIRE(result->nodes.size() == 6);
 
-    // Node 0 comment: "BGM再生" — verify non-empty and contains Japanese
+    // Node 0 comment: "BGM再生" - verify non-empty and contains Japanese
     CHECK_FALSE(result->nodes[0].comment.isEmpty());
-    // Node 5 comment: the long save-and-advance description
+    // Node 5 comment: long save-and-advance description
     CHECK_FALSE(result->nodes[5].comment.isEmpty());
-    // Both must survive the round-trip identical to the Shift-JIS version
-    // (covered by the "identical nodes" test above)
+    // Both must survive round-trip identical to Shift-JIS version
+    // (covered by "identical nodes" test above)
 }
