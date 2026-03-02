@@ -77,10 +77,11 @@ public:
     void drawPopupMenuItem(juce::Graphics &g, const juce::Rectangle<int> &area, bool isSeparator, bool isActive,
                            bool isHighlighted, bool isTicked, bool hasSubMenu, const juce::String &text,
                            const juce::String &shortcutKeyText, const juce::Drawable *icon,
-                           const juce::Colour *textColour) override;
+                           const juce::Colour *textColour, bool isFirstItem, bool isLastItem) override;
     void getIdealPopupMenuItemSize(const juce::String &text, bool isSeparator, int standardMenuItemHeight,
                                    int &idealWidth, int &idealHeight) override;
     int getPopupMenuBorderSize() override;
+    juce::BorderSize<int> getPopupMenuBorderSizeAsBorder(const juce::PopupMenu::Options& options) override;
 
     // MD3 dialog (AlertWindow)
     void drawAlertBox(juce::Graphics &, juce::AlertWindow &, const juce::Rectangle<int> &textArea,

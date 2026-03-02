@@ -201,7 +201,8 @@ void KiraNastroLookAndFeel::drawPopupMenuBackground(juce::Graphics &g, int width
 void KiraNastroLookAndFeel::drawPopupMenuItem(juce::Graphics &g, const juce::Rectangle<int> &area, bool isSeparator,
                                               bool isActive, bool isHighlighted, bool /*isTicked*/, bool /*hasSubMenu*/,
                                               const juce::String &text, const juce::String & /*shortcutKeyText*/,
-                                              const juce::Drawable * /*icon*/, const juce::Colour * /*textColour*/)
+                                              const juce::Drawable * /*icon*/, const juce::Colour * /*textColour*/,
+                                              bool isFirstItem, bool isLastItem)
 {
     if (isSeparator) {
         // MD3 "Vertical menu with divider" — 1px line with 8dp padding on each side
@@ -213,11 +214,48 @@ void KiraNastroLookAndFeel::drawPopupMenuItem(juce::Graphics &g, const juce::Rec
     }
 
     if (isHighlighted && isActive) {
-        // MD3 hover state: rounded rectangle with 4px radius, 8% opacity
-        // Only 2px margin from menu edge (less than text padding)
+        // MD3 hover state: rounded rectangle with 8% opacity
+        // 2px margin from menu edge
         auto highlightBounds = area.toFloat().reduced(2.0f, 0.0f);
         g.setColour(onSurface().withAlpha(0.08f));
-        g.fillRoundedRectangle(highlightBounds, 4.0f);
+
+        // Determine corner radius based on first/last item
+        // First item: top corners 16px to match container, bottom corners 4px
+        // Last item: top corners 4px, bottom corners 16px to match container
+        // Middle items: all corners 4px
+        float topLeftRadius = isFirstItem ? 16.0f : 4.0f;
+        float topRightRadius = isFirstItem ? 16.0f : 4.0f;
+        float bottomLeftRadius = isLastItem ? 16.0f : 4.0f;
+        float bottomRightRadius = isLastItem ? 16.0f : 4.0f;
+
+        // Draw rounded rectangle with different corner radii using path
+        juce::Path path;
+        const float x = highlightBounds.getX();
+        const float y = highlightBounds.getY();
+        const float w = highlightBounds.getWidth();
+        const float h = highlightBounds.getHeight();
+
+        // Start from top-left, moving clockwise
+        path.startNewSubPath(x + topLeftRadius, y);
+        // Top edge
+        path.lineTo(x + w - topRightRadius, y);
+        // Top-right corner
+        path.quadraticTo(x + w, y, x + w, y + topRightRadius);
+        // Right edge
+        path.lineTo(x + w, y + h - bottomRightRadius);
+        // Bottom-right corner
+        path.quadraticTo(x + w, y + h, x + w - bottomRightRadius, y + h);
+        // Bottom edge
+        path.lineTo(x + bottomLeftRadius, y + h);
+        // Bottom-left corner
+        path.quadraticTo(x, y + h, x, y + h - bottomLeftRadius);
+        // Left edge
+        path.lineTo(x, y + topLeftRadius);
+        // Top-left corner
+        path.quadraticTo(x, y, x + topLeftRadius, y);
+        path.closeSubPath();
+
+        g.fillPath(path);
     }
 
     const juce::Colour textCol = isActive ? onSurface() : onSurface().withAlpha(0.38f);
@@ -242,7 +280,13 @@ void KiraNastroLookAndFeel::getIdealPopupMenuItemSize(const juce::String &text, 
 
 int KiraNastroLookAndFeel::getPopupMenuBorderSize()
 {
-    return 12; // MD3 horizontal padding
+    return 12; // MD3 horizontal padding (left/right)
+}
+
+juce::BorderSize<int> KiraNastroLookAndFeel::getPopupMenuBorderSizeAsBorder(const juce::PopupMenu::Options&)
+{
+    // MD3: 2px vertical padding, 12px horizontal padding
+    return juce::BorderSize<int>(2, 12, 2, 12);
 }
 
 void KiraNastroLookAndFeel::drawAlertBox(juce::Graphics &g, juce::AlertWindow &alert,
