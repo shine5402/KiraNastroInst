@@ -350,8 +350,6 @@ void KiraNastroEditor::showMenu()
                                 const int totalMin = static_cast<int>(totalSec / 60.0);
                                 const double remSec = totalSec - totalMin * 60.0;
                                 const juce::String totalStr = juce::String::formatted("%d:%05.2f", totalMin, remSec);
-                                const int sr = static_cast<int>(std::round(params.sampleRate));
-
                                 juce::AlertWindow::showMessageBoxAsync(
                                     juce::MessageBoxIconType::InfoIcon, "Export Successful",
                                     "Description file saved.\n\n"
@@ -360,15 +358,10 @@ void KiraNastroEditor::showMenu()
                                     "   starting from time 0:00.0 to at least " +
                                         totalStr +
                                         ".\n"
-                                        "2. Export at " +
-                                        juce::String(sr) +
-                                        " Hz sample rate\n"
-                                        "   (matching the guide BGM — required until\n"
-                                        "   KiraWavTar auto-detects source sample rate).\n"
-                                        "3. Place the desc file in the same folder as your "
+                                        "2. Place the desc file in the same folder as your "
                                         "WAV,\n"
                                         "   named <yourwav>.kirawavtar-desc.json.\n"
-                                        "4. Open KiraWavTar and select the WAV file to "
+                                        "3. Open KiraWavTar and select the WAV file to "
                                         "extract.",
                                     "OK", this);
                             }

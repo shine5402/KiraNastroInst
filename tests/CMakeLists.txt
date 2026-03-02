@@ -9,9 +9,11 @@ target_sources(KiraNastro_Tests PRIVATE
     ReclistParserTest.cpp
     GuideBGMParserTest.cpp
     BGMPlayerTest.cpp
+    LabelExporterTest.cpp
     ../src/utils/TextEncoding.cpp
     ../src/data/ReclistParser.cpp
     ../src/data/GuideBGMParser.cpp
+    ../src/data/LabelExporter.cpp
     ../src/audio/BGMPlayer.cpp
 )
 

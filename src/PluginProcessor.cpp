@@ -417,7 +417,6 @@ KiraNastroProcessor::DescExportParams KiraNastroProcessor::getDescExportParams()
     p.blockDurationSec = (m_bgmBlockEndMs - m_bgmBlockStartMs) / 1000.0;
     p.recordingStartOffsetSec = m_recordingStartOffsetMs / 1000.0;
     p.recordingWindowDurationSec = m_recordingWindowDurationMs / 1000.0;
-    p.sampleRate = m_bgmPlayer.getSampleRate() > 0 ? static_cast<double>(m_bgmPlayer.getSampleRate()) : 44100.0;
     return p;
 }
 

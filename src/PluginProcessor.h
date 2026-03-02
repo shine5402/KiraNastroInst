@@ -7,6 +7,7 @@
 
 #include "audio/BGMPlayer.h"
 #include "data/GuideBGMParser.h"
+#include "data/LabelExporter.h"
 #include "data/ReclistParser.h"
 
 class KiraNastroProcessor : public juce::AudioProcessor
@@ -57,18 +58,7 @@ public:
     std::optional<GuideBGMData> getGuideBGMData() const;
     bool isBGMLoaded() const;
 
-    struct DescExportParams
-    {
-        std::vector<juce::String> entryNames;
-        double blockDurationSec = 0.0;
-        double recordingStartOffsetSec = 0.0;
-        double recordingWindowDurationSec = 0.0;
-        double sampleRate = 44100.0;
-        bool isValid() const
-        {
-            return !entryNames.empty() && blockDurationSec > 0.0 && recordingWindowDurationSec > 0.0;
-        }
-    };
+    using DescExportParams = LabelExporter::Params;
     DescExportParams getDescExportParams() const;
 
     struct EntryInfo

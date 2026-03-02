@@ -100,7 +100,7 @@
       ]
     },
     {
-      "name": "tests (relwithdebinfo)",
+      "name": "test-relwithdebinfo",
       "displayName": "Build test runner",
       "configurePreset": "relwithdebinfo",
       "targets": [
@@ -108,7 +108,7 @@
       ]
     },
     {
-      "name": "tests (debug)",
+      "name": "test-debug",
       "displayName": "Build test runner (Debug)",
       "configurePreset": "debug",
       "targets": [
@@ -118,7 +118,7 @@
   ],
   "testPresets": [
     {
-      "name": "tests (relwithdebinfo)",
+      "name": "relwithdebinfo",
       "displayName": "Run unit tests",
       "configurePreset": "relwithdebinfo",
       "output": {
@@ -126,7 +126,7 @@
       }
     },
     {
-      "name": "tests (debug)",
+      "name": "debug",
       "displayName": "Run unit tests (Debug)",
       "configurePreset": "debug",
       "output": {
