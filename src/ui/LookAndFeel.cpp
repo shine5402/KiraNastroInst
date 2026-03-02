@@ -268,14 +268,26 @@ void KiraNastroLookAndFeel::drawPopupMenuItem(juce::Graphics &g, const juce::Rec
 }
 
 void KiraNastroLookAndFeel::getIdealPopupMenuItemSize(const juce::String &text, bool isSeparator,
-                                                       int standardMenuItemHeight, int &idealWidth,
+                                                       int /*standardMenuItemHeight*/, int &idealWidth,
                                                        int &idealHeight)
 {
-    LookAndFeel_V4::getIdealPopupMenuItemSize(text, isSeparator, standardMenuItemHeight, idealWidth, idealHeight);
     if (isSeparator)
-        idealHeight = 17; // 1px line + 8dp top/bottom padding each side
+    {
+        idealWidth = 112; // M3 minimum width
+        idealHeight = 9; // 1px line + 4dp top/bottom padding (more compact)
+    }
     else
-        idealHeight = 40; // Compact menu item height (was 48)
+    {
+        // MD3 labelLarge: 14sp, weight 500 (Medium)
+        auto font = juce::Font(juce::FontOptions(Fonts::getSarasaSemiBold()).withHeight(14.0f));
+        idealHeight = 40; // Compact menu item height
+        
+        // M3: width = text width + horizontal padding (12px left + 12px right)
+        idealWidth = juce::GlyphArrangement::getStringWidthInt(font, text) + 24;
+        
+        // M3: minimum 112dp, no strict maximum on desktop (let content determine width)
+        idealWidth = juce::jmax(112, idealWidth);
+    }
 }
 
 int KiraNastroLookAndFeel::getPopupMenuBorderSize()
