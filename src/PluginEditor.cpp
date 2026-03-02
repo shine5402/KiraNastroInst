@@ -4,6 +4,7 @@
 
 #include "BinaryDataImages.h"
 #include "data/LabelExporter.h"
+#include "ui/MD3Dialog.h"
 #include "utils/Fonts.h"
 #include "utils/Icons.h"
 
@@ -316,10 +317,9 @@ void KiraNastroEditor::showMenu()
             else if (result == 4) {
                 auto params = m_audioProcessor.getDescExportParams();
                 if (!params.isValid()) {
-                    juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Cannot Export",
-                                                           "Please load both a reclist and a guide BGM "
-                                                           "before exporting.",
-                                                           "OK", this);
+                    MD3Dialog::show("Cannot Export",
+                                    "Please load both a reclist and a guide BGM before exporting.",
+                                    "OK", this);
                     return;
                 }
 
@@ -352,8 +352,8 @@ void KiraNastroEditor::showMenu()
                                 const int totalMin = static_cast<int>(totalSec / 60.0);
                                 const double remSec = totalSec - totalMin * 60.0;
                                 const juce::String totalStr = juce::String::formatted("%d:%05.2f", totalMin, remSec);
-                                juce::AlertWindow::showMessageBoxAsync(
-                                    juce::MessageBoxIconType::InfoIcon, "Export Successful",
+                                MD3Dialog::show(
+                                    "Export Successful",
                                     "Description file saved.\n\n"
                                     "Next steps:\n"
                                     "1. In your DAW, export your recording as a WAV file\n"
@@ -368,8 +368,7 @@ void KiraNastroEditor::showMenu()
                                     "OK", this);
                             }
                             else {
-                                juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon,
-                                                                       "Export Failed", errMsg, "OK", this);
+                                MD3Dialog::show("Export Failed", errMsg, "OK", this);
                             }
                         }
                         m_descChooser.reset();

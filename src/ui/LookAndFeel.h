@@ -41,6 +41,9 @@ public:
     static const juce::Colour md3OnSurfaceDark;               // #E3E1E9
     static const juce::Colour md3OutlineVariantDark;          // #45464F
 
+    // MD3 Scrim token (same for both themes)
+    static const juce::Colour md3Scrim; // #000000 @ 32% opacity
+
     KiraNastroLookAndFeel();
     ~KiraNastroLookAndFeel() override = default;
 
@@ -63,6 +66,7 @@ public:
     juce::Colour surfaceContainerHighest() const;
     juce::Colour onSurface() const;
     juce::Colour outlineVariant() const;
+    juce::Colour scrim() const;
 
     // MD3 filled button / text button (auto-detects AlertWindow context)
     void drawButtonBackground(juce::Graphics &g, juce::Button &button, const juce::Colour &backgroundColour,

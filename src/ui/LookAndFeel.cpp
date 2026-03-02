@@ -38,6 +38,9 @@ const juce::Colour KiraNastroLookAndFeel::md3SurfaceContainerHighestDark{0xFF292
 const juce::Colour KiraNastroLookAndFeel::md3OnSurfaceDark{0xFFE3E1E9};
 const juce::Colour KiraNastroLookAndFeel::md3OutlineVariantDark{0xFF45464F};
 
+// MD3 Scrim token (same for both themes)
+const juce::Colour KiraNastroLookAndFeel::md3Scrim{0x52000000};
+
 KiraNastroLookAndFeel::KiraNastroLookAndFeel()
 {
     // Apply MD3 palette to standard JUCE colour IDs
@@ -53,7 +56,7 @@ KiraNastroLookAndFeel::KiraNastroLookAndFeel()
     setColour(juce::PopupMenu::highlightedBackgroundColourId, md3OnSurface.withAlpha(0.08f));
     setColour(juce::PopupMenu::highlightedTextColourId, md3OnSurface);
     setColour(juce::AlertWindow::backgroundColourId, md3SurfaceContainerHigh);
-    setColour(juce::AlertWindow::textColourId, md3OnSurface);
+    setColour(juce::AlertWindow::textColourId, md3OnSurfaceVariant);
     setColour(juce::AlertWindow::outlineColourId, juce::Colours::transparentBlack);
 }
 
@@ -72,7 +75,7 @@ void KiraNastroLookAndFeel::setDarkMode(bool dark)
     setColour(juce::PopupMenu::highlightedBackgroundColourId, onSurface().withAlpha(0.08f));
     setColour(juce::PopupMenu::highlightedTextColourId, onSurface());
     setColour(juce::AlertWindow::backgroundColourId, surfaceContainerHigh());
-    setColour(juce::AlertWindow::textColourId, onSurface());
+    setColour(juce::AlertWindow::textColourId, onSurfaceVariant());
     setColour(juce::AlertWindow::outlineColourId, juce::Colours::transparentBlack);
 }
 
@@ -134,6 +137,11 @@ juce::Colour KiraNastroLookAndFeel::outlineVariant() const
     return m_isDark ? md3OutlineVariantDark : md3OutlineVariant;
 }
 
+juce::Colour KiraNastroLookAndFeel::scrim() const
+{
+    return md3Scrim;
+}
+
 void KiraNastroLookAndFeel::drawButtonBackground(juce::Graphics &g, juce::Button &button,
                                                  const juce::Colour &backgroundColour,
                                                  bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
@@ -141,8 +149,13 @@ void KiraNastroLookAndFeel::drawButtonBackground(juce::Graphics &g, juce::Button
     auto bounds = button.getLocalBounds().toFloat();
     const float cornerRadius = static_cast<float>(button.getHeight()) / 2.0f;
 
-    // MD3 text button inside AlertWindow — transparent bg, state layer only on interaction
-    if (dynamic_cast<juce::AlertWindow *>(button.getParentComponent()) != nullptr)
+    // Check if this is a dialog button (AlertWindow or MD3Dialog)
+    auto *parent = button.getParentComponent();
+    bool isDialogButton = (dynamic_cast<juce::AlertWindow *>(parent) != nullptr) ||
+                          (parent != nullptr && parent->getComponentID() == "md3Dialog");
+
+    // MD3 text button inside dialog — transparent bg, state layer only on interaction
+    if (isDialogButton)
     {
         if (shouldDrawButtonAsDown)
             g.setColour(primary().withAlpha(0.12f));
@@ -168,8 +181,13 @@ void KiraNastroLookAndFeel::drawButtonBackground(juce::Graphics &g, juce::Button
 void KiraNastroLookAndFeel::drawButtonText(juce::Graphics &g, juce::TextButton &button,
                                            bool /*shouldDrawButtonAsHighlighted*/, bool /*shouldDrawButtonAsDown*/)
 {
-    // MD3 text button inside AlertWindow — labelLarge, primary color
-    if (dynamic_cast<juce::AlertWindow *>(button.getParentComponent()) != nullptr)
+    // Check if this is a dialog button (AlertWindow or MD3Dialog)
+    auto *parent = button.getParentComponent();
+    bool isDialogButton = (dynamic_cast<juce::AlertWindow *>(parent) != nullptr) ||
+                          (parent != nullptr && parent->getComponentID() == "md3Dialog");
+
+    // MD3 text button inside dialog — labelLarge, primary color
+    if (isDialogButton)
     {
         g.setFont(juce::Font(juce::FontOptions(Fonts::getSarasaSemiBold()).withHeight(14.0f)));
         g.setColour(primary());
@@ -321,13 +339,14 @@ void KiraNastroLookAndFeel::drawAlertBox(juce::Graphics &g, juce::AlertWindow &a
 
 int KiraNastroLookAndFeel::getAlertWindowButtonHeight()
 {
-    return 40;
+    return 48; // MD3 minimum touch target
 }
 
 juce::Font KiraNastroLookAndFeel::getAlertWindowTitleFont()
 {
-    // MD3 headlineSmall: 24sp, weight 475 → SemiBold is the closest Sarasa weight
-    return juce::Font(juce::FontOptions(Fonts::getSarasaSemiBold()).withHeight(24.0f));
+    // MD3 headlineSmall: 24sp, regular weight (NOT bold)
+    // Line height: 32sp (handled by TextLayout)
+    return juce::Font(juce::FontOptions(Fonts::getSarasaRegular()).withHeight(24.0f));
 }
 
 juce::Font KiraNastroLookAndFeel::getAlertWindowMessageFont()

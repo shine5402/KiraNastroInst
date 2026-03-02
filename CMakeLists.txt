@@ -73,6 +73,8 @@ target_sources(KiraNastro
         src/ui/TimingIndicator.cpp
         src/ui/PlaybackControls.h
         src/ui/PlaybackControls.cpp
+        src/ui/MD3Dialog.h
+        src/ui/MD3Dialog.cpp
         src/utils/Fonts.h
         src/utils/TextEncoding.h
         src/utils/TextEncoding.cpp
@@ -98,6 +100,7 @@ target_link_libraries(KiraNastro
         juce::juce_audio_utils
         juce::juce_audio_formats
         juce::juce_gui_extra
+        juce::juce_animation
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags
