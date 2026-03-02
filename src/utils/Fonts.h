@@ -13,6 +13,13 @@ inline juce::Typeface::Ptr getSarasaRegular()
     return typeface;
 }
 
+inline juce::Typeface::Ptr getSarasaSemiBold()
+{
+    static juce::Typeface::Ptr typeface = juce::Typeface::createSystemTypefaceFor(
+        BinaryDataFonts::SarasaUiJSemiBold_ttf, BinaryDataFonts::SarasaUiJSemiBold_ttfSize);
+    return typeface;
+}
+
 inline juce::Typeface::Ptr getSarasaBold()
 {
     static juce::Typeface::Ptr typeface = juce::Typeface::createSystemTypefaceFor(

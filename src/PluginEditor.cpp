@@ -10,6 +10,7 @@
 KiraNastroEditor::KiraNastroEditor(KiraNastroProcessor &p) : AudioProcessorEditor(&p), m_audioProcessor(p)
 {
     setLookAndFeel(&m_lookAndFeel);
+    juce::LookAndFeel::setDefaultLookAndFeel(&m_lookAndFeel);
 
     // Load brand logo from embedded SVG
     if (auto xml = juce::XmlDocument::parse(
@@ -64,6 +65,7 @@ KiraNastroEditor::KiraNastroEditor(KiraNastroProcessor &p) : AudioProcessorEdito
 KiraNastroEditor::~KiraNastroEditor()
 {
     stopTimer();
+    juce::LookAndFeel::setDefaultLookAndFeel(nullptr);
     setLookAndFeel(nullptr);
 }
 
@@ -268,6 +270,7 @@ void KiraNastroEditor::reloadChipIcons()
 void KiraNastroEditor::showMenu()
 {
     juce::PopupMenu menu;
+    menu.setLookAndFeel(&m_lookAndFeel);
     menu.addItem(1, "Load Reclist...");
     menu.addItem(2, "Load BGM...");
     menu.addSeparator();
@@ -314,7 +317,6 @@ void KiraNastroEditor::showMenu()
                 auto params = m_audioProcessor.getDescExportParams();
                 if (!params.isValid()) {
                     juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Cannot Export",
-                                                           "Please load both a reclist and a guide BGM "
                                                            "Please load both a reclist and a guide BGM "
                                                            "before exporting.",
                                                            "OK", this);

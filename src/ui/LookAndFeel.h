@@ -27,6 +27,18 @@ public:
     static const juce::Colour md3NavBarDark;               // #1E2A5E (dark navy)
     static const juce::Colour md3OnNavBarDark;             // #FFFFFF
 
+    // MD3 Surface / Outline tokens (light)
+    static const juce::Colour md3SurfaceContainer;        // #EFEDF4
+    static const juce::Colour md3SurfaceContainerHigh;    // #E9E7EF
+    static const juce::Colour md3OnSurface;               // #1A1B21
+    static const juce::Colour md3OutlineVariant;          // #C6C5D0
+
+    // MD3 Surface / Outline tokens (dark)
+    static const juce::Colour md3SurfaceContainerDark;        // #1F1F25
+    static const juce::Colour md3SurfaceContainerHighDark;    // #292A2F
+    static const juce::Colour md3OnSurfaceDark;               // #E3E1E9
+    static const juce::Colour md3OutlineVariantDark;          // #45464F
+
     KiraNastroLookAndFeel();
     ~KiraNastroLookAndFeel() override = default;
 
@@ -44,10 +56,16 @@ public:
     juce::Colour surfaceVariant() const;
     juce::Colour navBar() const;
     juce::Colour onNavBar() const;
+    juce::Colour surfaceContainer() const;
+    juce::Colour surfaceContainerHigh() const;
+    juce::Colour onSurface() const;
+    juce::Colour outlineVariant() const;
 
-    // MD3 filled button
+    // MD3 filled button / text button (auto-detects AlertWindow context)
     void drawButtonBackground(juce::Graphics &g, juce::Button &button, const juce::Colour &backgroundColour,
                               bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
+    void drawButtonText(juce::Graphics &g, juce::TextButton &button,
+                        bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
 
     void drawLabel(juce::Graphics &g, juce::Label &label) override;
 
@@ -57,7 +75,16 @@ public:
                            bool isHighlighted, bool isTicked, bool hasSubMenu, const juce::String &text,
                            const juce::String &shortcutKeyText, const juce::Drawable *icon,
                            const juce::Colour *textColour) override;
+    void getIdealPopupMenuItemSize(const juce::String &text, bool isSeparator, int standardMenuItemHeight,
+                                   int &idealWidth, int &idealHeight) override;
     int getPopupMenuBorderSize() override;
+
+    // MD3 dialog (AlertWindow)
+    void drawAlertBox(juce::Graphics &, juce::AlertWindow &, const juce::Rectangle<int> &textArea,
+                      juce::TextLayout &) override;
+    int  getAlertWindowButtonHeight() override;
+    juce::Font getAlertWindowTitleFont() override;
+    juce::Font getAlertWindowMessageFont() override;
 
 private:
     bool m_isDark = false;

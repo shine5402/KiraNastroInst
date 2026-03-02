@@ -15,6 +15,7 @@ juce_add_binary_data(KiraNastroFonts
     NAMESPACE "BinaryDataFonts"
     SOURCES
         resources/fonts/SarasaUiJ-Regular.ttf
+        resources/fonts/SarasaUiJ-SemiBold.ttf
         resources/fonts/SarasaUiJ-Bold.ttf
         resources/fonts/Lexend-Regular.ttf
         resources/fonts/Lexend-Bold.ttf
