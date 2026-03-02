@@ -30,12 +30,14 @@ public:
     // MD3 Surface / Outline tokens (light)
     static const juce::Colour md3SurfaceContainer;        // #EFEDF4
     static const juce::Colour md3SurfaceContainerHigh;    // #E9E7EF
+    static const juce::Colour md3SurfaceContainerHighest; // #E9E7EF (same as High for light)
     static const juce::Colour md3OnSurface;               // #1A1B21
     static const juce::Colour md3OutlineVariant;          // #C6C5D0
 
     // MD3 Surface / Outline tokens (dark)
     static const juce::Colour md3SurfaceContainerDark;        // #1F1F25
     static const juce::Colour md3SurfaceContainerHighDark;    // #292A2F
+    static const juce::Colour md3SurfaceContainerHighestDark; // #292A2F (same as High for dark)
     static const juce::Colour md3OnSurfaceDark;               // #E3E1E9
     static const juce::Colour md3OutlineVariantDark;          // #45464F
 
@@ -58,6 +60,7 @@ public:
     juce::Colour onNavBar() const;
     juce::Colour surfaceContainer() const;
     juce::Colour surfaceContainerHigh() const;
+    juce::Colour surfaceContainerHighest() const;
     juce::Colour onSurface() const;
     juce::Colour outlineVariant() const;
 

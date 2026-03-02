@@ -8,3 +8,4 @@ build-*/
 *.component
 compile_commands.json
 .claude/
+.trae/

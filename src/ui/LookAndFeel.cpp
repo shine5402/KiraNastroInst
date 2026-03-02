@@ -27,12 +27,14 @@ const juce::Colour KiraNastroLookAndFeel::md3OnNavBarDark{0xFFFFFFFF};
 // MD3 Surface / Outline tokens (light)
 const juce::Colour KiraNastroLookAndFeel::md3SurfaceContainer{0xFFEFEDF4};
 const juce::Colour KiraNastroLookAndFeel::md3SurfaceContainerHigh{0xFFE9E7EF};
+const juce::Colour KiraNastroLookAndFeel::md3SurfaceContainerHighest{0xFFE9E7EF}; // Same as High for light
 const juce::Colour KiraNastroLookAndFeel::md3OnSurface{0xFF1A1B21};
 const juce::Colour KiraNastroLookAndFeel::md3OutlineVariant{0xFFC6C5D0};
 
 // MD3 Surface / Outline tokens (dark)
 const juce::Colour KiraNastroLookAndFeel::md3SurfaceContainerDark{0xFF1F1F25};
 const juce::Colour KiraNastroLookAndFeel::md3SurfaceContainerHighDark{0xFF292A2F};
+const juce::Colour KiraNastroLookAndFeel::md3SurfaceContainerHighestDark{0xFF292A2F}; // Same as High for dark
 const juce::Colour KiraNastroLookAndFeel::md3OnSurfaceDark{0xFFE3E1E9};
 const juce::Colour KiraNastroLookAndFeel::md3OutlineVariantDark{0xFF45464F};
 
@@ -48,7 +50,7 @@ KiraNastroLookAndFeel::KiraNastroLookAndFeel()
     // to show correctly (the real fill colour is applied in drawPopupMenuBackground).
     setColour(juce::PopupMenu::backgroundColourId, juce::Colours::transparentBlack);
     setColour(juce::PopupMenu::textColourId, md3OnSurface);
-    setColour(juce::PopupMenu::highlightedBackgroundColourId, md3OnSurface.withAlpha(0.10f));
+    setColour(juce::PopupMenu::highlightedBackgroundColourId, md3OnSurface.withAlpha(0.08f));
     setColour(juce::PopupMenu::highlightedTextColourId, md3OnSurface);
     setColour(juce::AlertWindow::backgroundColourId, md3SurfaceContainerHigh);
     setColour(juce::AlertWindow::textColourId, md3OnSurface);
@@ -67,7 +69,7 @@ void KiraNastroLookAndFeel::setDarkMode(bool dark)
     setColour(juce::ScrollBar::thumbColourId, primary());
     setColour(juce::PopupMenu::backgroundColourId, juce::Colours::transparentBlack);
     setColour(juce::PopupMenu::textColourId, onSurface());
-    setColour(juce::PopupMenu::highlightedBackgroundColourId, onSurface().withAlpha(0.10f));
+    setColour(juce::PopupMenu::highlightedBackgroundColourId, onSurface().withAlpha(0.08f));
     setColour(juce::PopupMenu::highlightedTextColourId, onSurface());
     setColour(juce::AlertWindow::backgroundColourId, surfaceContainerHigh());
     setColour(juce::AlertWindow::textColourId, onSurface());
@@ -118,6 +120,10 @@ juce::Colour KiraNastroLookAndFeel::surfaceContainer() const
 juce::Colour KiraNastroLookAndFeel::surfaceContainerHigh() const
 {
     return m_isDark ? md3SurfaceContainerHighDark : md3SurfaceContainerHigh;
+}
+juce::Colour KiraNastroLookAndFeel::surfaceContainerHighest() const
+{
+    return m_isDark ? md3SurfaceContainerHighestDark : md3SurfaceContainerHighest;
 }
 juce::Colour KiraNastroLookAndFeel::onSurface() const
 {
@@ -187,8 +193,8 @@ void KiraNastroLookAndFeel::drawLabel(juce::Graphics &g, juce::Label &label)
 void KiraNastroLookAndFeel::drawPopupMenuBackground(juce::Graphics &g, int width, int height)
 {
     const juce::Rectangle<float> bounds(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
-    g.setColour(surfaceContainer());
-    g.fillRoundedRectangle(bounds, 4.0f);
+    g.setColour(surfaceContainerHighest());
+    g.fillRoundedRectangle(bounds, 16.0f);
     // No outline — MD3 menus have no border
 }
 
@@ -198,24 +204,29 @@ void KiraNastroLookAndFeel::drawPopupMenuItem(juce::Graphics &g, const juce::Rec
                                               const juce::Drawable * /*icon*/, const juce::Colour * /*textColour*/)
 {
     if (isSeparator) {
-        // MD3 "Vertical menu with divider" — full-width 1px line, no horizontal inset
+        // MD3 "Vertical menu with divider" — 1px line with 8dp padding on each side
         g.setColour(outlineVariant());
-        g.fillRect(area.getX(), area.getCentreY(), area.getWidth(), 1);
+        // Draw 1px line centered in the area, with horizontal inset of 12px (border size)
+        const int lineY = area.getCentreY();
+        g.fillRect(area.getX() + 12, lineY, area.getWidth() - 24, 1);
         return;
     }
 
     if (isHighlighted && isActive) {
-        g.setColour(onSurface().withAlpha(0.10f));
-        g.fillRect(area);
+        // MD3 hover state: rounded rectangle with 4px radius, 8% opacity
+        // Only 2px margin from menu edge (less than text padding)
+        auto highlightBounds = area.toFloat().reduced(2.0f, 0.0f);
+        g.setColour(onSurface().withAlpha(0.08f));
+        g.fillRoundedRectangle(highlightBounds, 4.0f);
     }
 
     const juce::Colour textCol = isActive ? onSurface() : onSurface().withAlpha(0.38f);
     g.setColour(textCol);
     // MD3 labelLarge: 14sp, weight 500 (Medium) → SemiBold is closest Sarasa weight
     g.setFont(juce::Font(juce::FontOptions(Fonts::getSarasaSemiBold()).withHeight(14.0f)));
-    g.drawFittedText(text,
-                     area.withLeft(area.getX() + 16).withRight(area.getRight() - 16),
-                     juce::Justification::centredLeft, 1);
+    // Text has 12px horizontal padding (more than hover background)
+    auto textArea = area.withLeft(area.getX() + 12).withRight(area.getRight() - 12);
+    g.drawFittedText(text, textArea, juce::Justification::centredLeft, 1);
 }
 
 void KiraNastroLookAndFeel::getIdealPopupMenuItemSize(const juce::String &text, bool isSeparator,
@@ -226,12 +237,12 @@ void KiraNastroLookAndFeel::getIdealPopupMenuItemSize(const juce::String &text, 
     if (isSeparator)
         idealHeight = 17; // 1px line + 8dp top/bottom padding each side
     else
-        idealHeight = juce::jmax(48, idealHeight); // MD3 minimum touch target
+        idealHeight = 40; // Compact menu item height (was 48)
 }
 
 int KiraNastroLookAndFeel::getPopupMenuBorderSize()
 {
-    return 4;
+    return 12; // MD3 horizontal padding
 }
 
 void KiraNastroLookAndFeel::drawAlertBox(juce::Graphics &g, juce::AlertWindow &alert,
