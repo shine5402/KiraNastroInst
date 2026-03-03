@@ -1,3 +1,6 @@
+// Copyright (c) 2026 shine_5402
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "GuideBGMParser.h"
 
 #include "../utils/TextEncoding.h"

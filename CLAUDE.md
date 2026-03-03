@@ -27,6 +27,12 @@ KiraNastro inst. handles steps 1-3 inside a DAW. Step 4 is handled by the compan
 
 - Read [CODING_STYLE.md](file:///Users/shine_5402/Project/KiraNastroInst/CODING_STYLE.md) for code style.
 - When writing commit messages, use the conventional commit message format.
+- When creating new source files in `src/` or `tests/`, always add the SPDX license identifier at the top:
+  ```cpp
+  // Copyright (c) 2026 shine_5402
+  // SPDX-License-Identifier: GPL-3.0-or-later
+  ```
+  Note: Do NOT add this to third-party code (e.g., JUCE submodule, bundled test data) — follow their respective licenses.
 
 ## Standalone-Only Code Rule
 
