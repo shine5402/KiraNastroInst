@@ -5,7 +5,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#include "PluginProcessor.h"
+#include "KiraNastroProcessor.h"
 #include "ui/LookAndFeel.h"
 #include "ui/PlaybackControls.h"
 #include "ui/TimingIndicator.h"

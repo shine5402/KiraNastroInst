@@ -3,7 +3,7 @@
 
 #include "PlaybackControls.h"
 
-#include "../PluginProcessor.h"
+#include "../KiraNastroProcessor.h"
 
 PlaybackControls::PlaybackControls(KiraNastroProcessor &processor) : m_processor(processor)
 {

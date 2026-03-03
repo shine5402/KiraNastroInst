@@ -53,10 +53,10 @@ juce_add_plugin(KiraNastro
 
 target_sources(KiraNastro
     PRIVATE
-        src/PluginProcessor.h
-        src/PluginProcessor.cpp
-        src/PluginEditor.h
-        src/PluginEditor.cpp
+        src/KiraNastroProcessor.h
+        src/KiraNastroProcessor.cpp
+        src/KiraNastroEditor.h
+        src/KiraNastroEditor.cpp
         src/audio/BGMPlayer.h
         src/audio/BGMPlayer.cpp
         src/data/ReclistParser.h
@@ -67,8 +67,6 @@ target_sources(KiraNastro
         src/data/LabelExporter.cpp
         src/ui/LookAndFeel.h
         src/ui/LookAndFeel.cpp
-        src/ui/MainComponent.h
-        src/ui/MainComponent.cpp
         src/ui/TimingIndicator.h
         src/ui/TimingIndicator.cpp
         src/ui/PlaybackControls.h

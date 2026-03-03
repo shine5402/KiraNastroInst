@@ -9,3 +9,4 @@ build-*/
 compile_commands.json
 .claude/
 .trae/
+*.code-workspace

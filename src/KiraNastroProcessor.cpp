@@ -1,9 +1,9 @@
 // Copyright (c) 2026 shine_5402
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "PluginProcessor.h"
+#include "KiraNastroProcessor.h"
 
-#include "PluginEditor.h"
+#include "KiraNastroEditor.h"
 
 KiraNastroProcessor::KiraNastroProcessor()
     : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true))
