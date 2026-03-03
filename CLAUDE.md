@@ -68,7 +68,12 @@ cmake --build --preset debug --target KiraNastro_Standalone
 ```bash
 # Run tests
 ctest --preset debug
+
+# Run specific test
+ctest --preset debug -R LabelExporter
 ```
+
+Tests use **Catch2** (added as a git submodule in `3rdparty/Catch2/`).
 
 ## Architecture
 
@@ -83,13 +88,15 @@ ctest --preset debug
 #### Audio Layer (PluginProcessor)
 - **BGM Playback Engine**: Loads guide BGM WAV files and plays them back through the plugin's audio output, synchronized with timing nodes. The BGM audio is pre-loaded into memory buffers (files are typically short, ~20s).
 - **Timing Scheduler**: Tracks playback position against guide BGM timing nodes to determine when to advance to the next reclist entry and when the BGM loops.
-- **State Persistence**: Saves/restores current session (reclist path, BGM path, current entry index, settings) via `getStateInformation`/`setStateInformation`.
+- **DAW Transport Sync**: In plugin mode, playback is locked to DAW transport position. Supports sample-accurate positioning via `getTimeInSamples()`, with fallback to `getTimeInSeconds()` and PPQ position.
+- **State Persistence**: Saves/restores current session (reclist path, BGM path, current entry index, settings) via `getStateInformation`/`setStateInformation` (Phase 6 TODO).
 
 #### UI Layer (PluginEditor)
 - **Main Display**: Shows current reclist entry (large Japanese/romaji text), comment line, next entry preview, progress counter, and a timing indicator (pie chart showing position within current BGM cycle).
 - **Bottom Bar**: Brand name "KiraNastro inst." with logo, hamburger menu for settings.
 - **Settings/Menu**: Load reclist, load BGM, export label file, navigation controls.
-- **Design System**: Loosely follows Material Design 3. Uses rounded containers, soft shadows, blue primary color (#1A3FC7 approximate from design).
+- **Design System**: Material Design 3 with light/dark mode support. Uses rounded containers, soft shadows. LookAndFeel class provides MD3 color tokens for both themes.
+- **Standalone Controls**: Play/pause button and progress slider (only visible in standalone mode, hidden in plugin mode).
 
 #### Data Layer
 - **ReclistParser**: Loads `.txt` reclist files (Shift-JIS or UTF-8), parses entries and optional comment files.
@@ -212,39 +219,59 @@ The plugin window has a compact, horizontal layout:
 - **Typography**: Sarasa UI JP (body text, CJK), Lexend (brand name)
 
 ### Fonts
-- **UI Font**: Sarasa UI JP (`SarasaUiJ-Regular.ttf`, `SarasaUiJ-Bold.ttf`, etc.) at `/Users/shine_5402/Downloads/Sarasa-TTF-Unhinted-1.0.36/`
-- **Brand Font**: Lexend (variable weight) at `/Users/shine_5402/Downloads/Lexend/`
-- Fonts will be embedded as binary data in the plugin
+- **UI Font**: Sarasa UI JP — embedded in `resources/fonts/` (Regular, SemiBold, Bold weights)
+- **Brand Font**: Lexend — embedded in `resources/fonts/` (Regular, Bold weights)
+- Fonts are embedded as binary data via JUCE's `juce_add_binary_data` CMake function
 
-## Project Structure (Planned)
+## Project Structure
 
 ```
-KiraNastroVST/
-├── CLAUDE.md                       # This file
+KiraNastroInst/
+├── CLAUDE.md                       # This file (AI coding agent guideline)
+├── CODING_STYLE.md                 # Code style conventions
 ├── CMakeLists.txt                  # Top-level CMake
-├── JUCE/                           # JUCE as git submodule
-├── design/                         # Design assets
-│   ├── main_draft.pdf
-│   ├── branding.svg
-│   └── branding.pdf
+├── 3rdparty/                       # Third-party dependencies
+│   ├── JUCE/                       # JUCE framework (git submodule)
+│   └── Catch2/                     # Catch2 test framework (git submodule)
 ├── src/
-│   ├── PluginProcessor.h/cpp       # AudioProcessor — BGM playback, timing
-│   ├── PluginEditor.h/cpp          # AudioProcessorEditor — UI
+│   ├── KiraNastroProcessor.h/cpp   # AudioProcessor — BGM playback, timing
+│   ├── KiraNastroEditor.h/cpp      # AudioProcessorEditor — UI
 │   ├── data/
 │   │   ├── ReclistParser.h/cpp     # Reclist + comment file parsing
 │   │   ├── GuideBGMParser.h/cpp    # Guide BGM timing file parsing
-│   │   └── LabelExporter.h/cpp     # Export timing labels for KiraWavTar
+│   │   └── LabelExporter.h/cpp     # Export KiraWavTar-compatible labels
 │   ├── audio/
 │   │   └── BGMPlayer.h/cpp         # In-memory BGM playback with looping
 │   ├── ui/
-│   │   ├── MainComponent.h/cpp     # Main plugin UI layout
-│   │   ├── LookAndFeel.h/cpp       # MD3-inspired custom styling
-│   │   └── TimingIndicator.h/cpp   # Pie chart timing display
+│   │   ├── LookAndFeel.h/cpp       # MD3-inspired custom styling (light/dark)
+│   │   ├── TimingIndicator.h/cpp   # Pie chart timing display
+│   │   ├── PlaybackControls.h/cpp  # Standalone-only play/pause controls
+│   │   └── MD3Dialog.h/cpp         # Material Design 3 dialog helpers
 │   └── utils/
 │       ├── Fonts.h                 # Embedded font management
+│       ├── Icons.h                 # Material Symbols icon constants
 │       └── TextEncoding.h/cpp      # Shift-JIS / UTF-8 detection
+├── tests/
+│   ├── CMakeLists.txt              # Test CMake configuration
+│   ├── testdata/                   # Test fixtures (reclist, BGM files)
+│   ├── ReclistParserTest.cpp
+│   ├── GuideBGMParserTest.cpp
+│   ├── BGMPlayerTest.cpp
+│   ├── LabelExporterTest.cpp
+│   └── TextEncodingTest.cpp
 └── resources/
-    └── fonts/                      # Embedded font files (copied at build time)
+    ├── branding/
+    │   └── icon.svg                # Brand logo (embedded)
+    ├── fonts/                      # Embedded fonts
+    │   ├── SarasaUiJ-Regular.ttf
+    │   ├── SarasaUiJ-SemiBold.ttf
+    │   ├── SarasaUiJ-Bold.ttf
+    │   ├── Lexend-Regular.ttf
+    │   └── Lexend-Bold.ttf
+    └── icons/                      # SVG icons (Material Symbols)
+        ├── arrow_right.svg
+        ├── menu.svg
+        └── percent.svg
 ```
 
 ## Key Technical Decisions
@@ -252,7 +279,10 @@ KiraNastroVST/
 ### BGM Playback Strategy
 - Pre-load entire BGM WAV into `juce::AudioBuffer<float>` (files are ~20 seconds)
 - Track playback position with a sample counter in `processBlock`
-- When the timing scheduler says "loop", reset the playback position to the repeat target node's time
+- The BGM "block" is defined by timing nodes: `[bgmBlockStartMs, bgmBlockEndMs)`
+  - Block start = first timing node's time
+  - Block end = time of the node with `repeatTargetNodeIndex` set (typically the last node)
+- When playback reaches block end, seek back to block start and advance the reclist entry
 - Output BGM audio mixed into the plugin's audio output buffer
 
 ### DAW Integration
@@ -263,9 +293,11 @@ KiraNastroVST/
 - Could optionally use MIDI note-on to trigger next entry advance
 
 ### Label Generation
-- Track the timing of each entry (start time relative to DAW transport or relative to recording start)
-- Export a label/description file compatible with KiraWavTar's `.kirawavtar-desc.json` format
-- Alternative: export simple text-based labels (entry name + start/end time) that can be used with other splitting tools
+- Entry timing is computed **deterministically** from the BGM block structure — no per-session tracking needed
+- Each entry's `begin_time` = `(entryIndex × blockDuration) + recordingStartOffset`
+- All entries share the same `duration` = `recordingWindowDuration`
+- Export a `.kirawavtar-desc.json` file compatible with KiraWavTar (version 4 format)
+- KiraWavTar reads audio format from the actual WAV file when `combiner == "nastro_inst"`, so sample_rate/channel_count etc. are omitted from the description file
 
 ### Text Encoding
 - Must handle Shift-JIS encoded files (very common in the UTAU community, especially Japanese reclists and BGM timing files)
@@ -274,36 +306,35 @@ KiraNastroVST/
 
 ## Development Phases
 
-### Phase 1: Core Infrastructure
-- [ ] Set up JUCE CMake project structure
-- [ ] Implement PluginProcessor skeleton (VSTi, accepts MIDI, audio output)
-- [ ] Implement PluginEditor skeleton with basic UI
-- [ ] Set up font embedding (Sarasa UI JP, Lexend)
+### Phase 1: Core Infrastructure ✅
+- [x] Set up JUCE CMake project structure
+- [x] Implement PluginProcessor skeleton (VSTi, accepts MIDI, audio output)
+- [x] Implement PluginEditor skeleton with basic UI
+- [x] Set up font embedding (Sarasa UI JP, Lexend)
 
-### Phase 2: Data Loading
-- [ ] Reclist parser (UTF-8 + Shift-JIS)
-- [ ] Comment file parser
-- [ ] Guide BGM timing file parser
-- [ ] BGM WAV file loading into memory
+### Phase 2: Data Loading ✅
+- [x] Reclist parser (UTF-8 + Shift-JIS)
+- [x] Comment file parser
+- [x] Guide BGM timing file parser
+- [x] BGM WAV file loading into memory
 
-### Phase 3: BGM Playback
-- [ ] BGM audio playback in processBlock
-- [ ] Timing node tracking and looping
-- [ ] Entry advancement logic
+### Phase 3: BGM Playback ✅
+- [x] BGM audio playback in processBlock
+- [x] Timing node tracking and looping
+- [x] Entry advancement logic
 
-### Phase 4: UI
-- [ ] Main display (current entry, comment, timing indicator)
-- [ ] Next entry preview and progress counter
-- [ ] Bottom bar with branding
-- [ ] Menu/settings dialog (load reclist, load BGM, etc.)
-- [ ] Custom LookAndFeel (MD3-inspired)
+### Phase 4: UI ✅
+- [x] Main display (current entry, comment, timing indicator)
+- [x] Next entry preview and progress counter
+- [x] Bottom bar with branding
+- [x] Menu/settings dialog (load reclist, load BGM, etc.)
+- [x] Custom LookAndFeel (MD3-inspired with light/dark mode)
 
-### Phase 5: Label Export
-- [ ] Track entry timing during recording
-- [ ] Export KiraWavTar-compatible label file
-- [ ] Export simple text labels as alternative
+### Phase 5: Label Export ✅
+- [x] Deterministic entry timing from BGM block structure
+- [x] Export KiraWavTar-compatible `.kirawavtar-desc.json` file
 
-### Phase 6: Polish
+### Phase 6: Polish (In Progress)
 - [ ] State save/restore (DAW session recall)
 - [ ] Cross-platform testing (macOS, Windows, Linux)
 - [ ] Error handling and edge cases
@@ -320,5 +351,4 @@ KiraNastroVST/
 - **Reclist**: `/Users/shine_5402/Downloads/VCVlist_romaji(beta)/reclist/8mora.txt` (186 entries)
 - **Comment file**: `/Users/shine_5402/Downloads/VCVlist_romaji(beta)/reclist/8mora-comment.txt`
 - **Guide BGM**: `/Users/shine_5402/Downloads/OneNoteJazz by ちえP/100/Jazz-100-A.wav` (with `.txt` timing file)
-- **Sarasa UI JP font**: `/Users/shine_5402/Downloads/Sarasa-TTF-Unhinted-1.0.36/SarasaUiJ-*.ttf`
-- **Lexend font**: `/Users/shine_5402/Downloads/Lexend/Lexend-VariableFont_wght.ttf` (or static variants in `static/`)
+- **Test data**: `tests/testdata/` — contains sample reclist, BGM, and timing files for unit tests
