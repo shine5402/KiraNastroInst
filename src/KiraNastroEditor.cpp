@@ -307,8 +307,30 @@ void KiraNastroEditor::showMenu()
                                               juce::FileBrowserComponent::canSelectFiles,
                                           [this](const juce::FileChooser &f) {
                                               auto file = f.getResult();
-                                              if (file.exists())
-                                                  m_audioProcessor.loadGuideBGM(file);
+                                              if (file.exists()) {
+                                                  auto bgmResult = m_audioProcessor.loadGuideBGM(file);
+                                                  juce::String msg;
+                                                  switch (bgmResult) {
+                                                      case KiraNastroProcessor::BGMLoadResult::Success:
+                                                          break;
+                                                      case KiraNastroProcessor::BGMLoadResult::WavLoadFailed:
+                                                          msg = "The selected WAV file could not be loaded. "
+                                                                "It may be corrupted or in an unsupported format.";
+                                                          break;
+                                                      case KiraNastroProcessor::BGMLoadResult::TimingFileMissing:
+                                                          msg = "No timing description file was found alongside the WAV file. "
+                                                                "Place the OREMO timing file (.txt) in the same folder "
+                                                                "with the same base name (e.g. Jazz-100-A.txt).";
+                                                          break;
+                                                      case KiraNastroProcessor::BGMLoadResult::TimingFileInvalid:
+                                                          msg = "The timing description file has an unrecognized format. "
+                                                                "KiraNastro inst. requires an OREMO-standard 6-row timing file. "
+                                                                "Try regenerating it with korede (bundled with OREMO).";
+                                                          break;
+                                                  }
+                                                  if (msg.isNotEmpty())
+                                                      MD3Dialog::show("Failed to Load BGM", msg, "OK", this);
+                                              }
                                               m_bgmChooser.reset();
                                           });
             }

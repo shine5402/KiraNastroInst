@@ -41,8 +41,9 @@ std::optional<GuideBGMData> GuideBGMParser::loadFromTimingFile(const juce::File 
     else
         return std::nullopt;
 
-    GuideBGMData result;
-    result.name = timingFile.getFileNameWithoutExtension();
+    // Collect time values in order (one per data row)
+    std::vector<double> times;
+    times.reserve(6);
 
     for (int lineIdx = 1; lineIdx < lines.size(); ++lineIdx) {
         auto line = lines[lineIdx].trim();
@@ -54,43 +55,20 @@ std::optional<GuideBGMData> GuideBGMParser::loadFromTimingFile(const juce::File 
         if (fields.size() < 6)
             continue;
 
-        // Field 0: row number (1-indexed, not stored)
-        // Field 1: time position
-        double rawTime = fields[1].trim().getDoubleValue();
-        double timeMs = rawTime * timeMultiplier;
-
-        // Fields 2-4: boolean flags
-        bool isRecStart = (fields[2].trim().getIntValue() == 1);
-        bool isRecEnd = (fields[3].trim().getIntValue() == 1);
-        bool isSwitching = (fields[4].trim().getIntValue() == 1);
-
-        // Field 5: repeat target (1-indexed in file; convert to 0-indexed, -1 = no repeat)
-        int rawRepeat = fields[5].trim().getIntValue();
-        int repeatTargetNodeIndex = rawRepeat > 0 ? rawRepeat - 1 : -1;
-
-        // Fields 6+: optional comment (may contain commas — rejoin)
-        juce::String comment;
-        if (fields.size() > 6) {
-            for (int f = 6; f < fields.size(); ++f) {
-                if (f > 6)
-                    comment += ",";
-                comment += fields[f];
-            }
-            comment = comment.trim();
-        }
-
-        TimingNode node;
-        node.timeMs = timeMs;
-        node.isRecordingStart = isRecStart;
-        node.isRecordingEnd = isRecEnd;
-        node.isSwitching = isSwitching;
-        node.repeatTargetNodeIndex = repeatTargetNodeIndex;
-        node.comment = comment;
-
-        result.nodes.push_back(node);
+        times.push_back(fields[1].trim().getDoubleValue() * timeMultiplier);
     }
 
-    if (result.nodes.empty())
+    // Require exactly 6 data rows (OREMO standard)
+    if (times.size() != 6)
         return std::nullopt;
+
+    GuideBGMData result;
+    result.name = timingFile.getFileNameWithoutExtension();
+    result.timing.bgmPlaybackStartMs = times[0];
+    result.timing.recordingStartMs   = times[1];
+    result.timing.utteranceStartMs   = times[2];
+    result.timing.utteranceEndMs     = times[3];
+    result.timing.recordingEndMs     = times[4];
+    result.timing.bgmLoopMs          = times[5];
     return result;
 }

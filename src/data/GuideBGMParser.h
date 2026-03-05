@@ -6,26 +6,25 @@
 #include <juce_core/juce_core.h>
 
 #include <optional>
-#include <vector>
 
-struct TimingNode
+struct GuideBGMTiming
 {
-    double timeMs; // absolute time in milliseconds
-    bool isRecordingStart;
-    bool isRecordingEnd;
-    bool isSwitching;
-    int repeatTargetNodeIndex; // 0-indexed; -1 = no repeat
-    juce::String comment;
+    double bgmPlaybackStartMs; // Row 1 — block start
+    double recordingStartMs;   // Row 2 — isRecordingStart=1
+    double utteranceStartMs;   // Row 3 — singer cue (begin)
+    double utteranceEndMs;     // Row 4 — singer cue (end)
+    double recordingEndMs;     // Row 5 — isRecordingEnd=1
+    double bgmLoopMs;          // Row 6 — isSwitching=1, block end
 };
 
 struct GuideBGMData
 {
-    juce::String name;             // basename without extension
-    std::vector<TimingNode> nodes; // ordered as in file (row 1 = index 0)
+    juce::String name;    // basename without extension
+    GuideBGMTiming timing;
 };
 
 // Parses OREMO-format guide BGM timing description files (.txt).
-// Produces a list of timing nodes used by the scheduling engine.
+// Requires exactly 6 data rows matching the fixed OREMO standard structure.
 class GuideBGMParser
 {
 public:

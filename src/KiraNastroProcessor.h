@@ -54,7 +54,15 @@ public:
     //==============================================================================
     // Data loading — call from message thread
     bool loadReclist(const juce::File &reclistFile);
-    bool loadGuideBGM(const juce::File &wavFile);
+
+    enum class BGMLoadResult
+    {
+        Success,
+        WavLoadFailed,      // WAV file missing or unreadable
+        TimingFileMissing,  // No sibling .txt found
+        TimingFileInvalid,  // .txt found but not valid OREMO 6-row format
+    };
+    BGMLoadResult loadGuideBGM(const juce::File &wavFile);
 
     // Thread-safe accessors — return copies under lock
     std::optional<ReclistData> getReclistData() const;

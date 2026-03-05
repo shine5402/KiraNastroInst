@@ -239,61 +239,38 @@ bool KiraNastroProcessor::loadReclist(const juce::File &reclistFile)
     return false;
 }
 
-bool KiraNastroProcessor::loadGuideBGM(const juce::File &wavFile)
+KiraNastroProcessor::BGMLoadResult KiraNastroProcessor::loadGuideBGM(const juce::File &wavFile)
 {
+    // Check timing file first — gives the most specific error
+    auto timingFile = wavFile.withFileExtension("txt");
+    if (!timingFile.existsAsFile())
+        return BGMLoadResult::TimingFileMissing;
+
     auto timingResult = GuideBGMParser::load(wavFile);
+    if (!timingResult.has_value())
+        return BGMLoadResult::TimingFileInvalid;
+
     bool wavOk = m_bgmPlayer.loadFile(wavFile);
+    if (!wavOk)
+        return BGMLoadResult::WavLoadFailed;
 
     {
         juce::ScopedLock sl(m_dataLock);
         m_bgmData = timingResult;
     }
 
-    // Compute BGM block boundaries from timing nodes.
-    // Block start = first node's time.
-    // Block end   = time of the node that has a repeatTargetNodeIndex set.
-    m_bgmBlockStartMs = 0.0;
-    m_bgmBlockEndMs = 0.0;
-    m_recordingStartOffsetMs = 0.0;
-    m_recordingWindowDurationMs = 0.0;
+    const auto &t = timingResult->timing;
+    m_bgmBlockStartMs           = t.bgmPlaybackStartMs;
+    m_bgmBlockEndMs             = t.bgmLoopMs;
+    m_recordingStartOffsetMs    = t.recordingStartMs - t.bgmPlaybackStartMs;
+    m_recordingWindowDurationMs = t.recordingEndMs   - t.recordingStartMs;
 
-    if (timingResult.has_value() && !timingResult->nodes.empty()) {
-        m_bgmBlockStartMs = timingResult->nodes.front().timeMs;
+    // Seek to block start
+    const double fileSR = static_cast<double>(m_bgmPlayer.getSampleRate());
+    const int64_t startSamples = static_cast<int64_t>((m_bgmBlockStartMs / 1000.0) * fileSR);
+    m_bgmPlayer.seekToSample(startSamples);
 
-        // Find the node with repeatTargetNodeIndex >= 0 (typically the last node)
-        for (auto it = timingResult->nodes.rbegin(); it != timingResult->nodes.rend(); ++it) {
-            if (it->repeatTargetNodeIndex >= 0) {
-                m_bgmBlockEndMs = it->timeMs;
-                break;
-            }
-        }
-
-        // Fallback: if no repeat node found, use the last node's time
-        if (m_bgmBlockEndMs <= m_bgmBlockStartMs) {
-            m_bgmBlockEndMs = timingResult->nodes.back().timeMs;
-        }
-
-        // Find recording window offsets
-        double recordingStartAbsMs = m_bgmBlockStartMs; // fallback: recording starts at block start
-        for (const auto &node : timingResult->nodes) {
-            if (node.isRecordingStart)
-                recordingStartAbsMs = node.timeMs;
-            if (node.isRecordingEnd && node.timeMs > recordingStartAbsMs) {
-                m_recordingStartOffsetMs = recordingStartAbsMs - m_bgmBlockStartMs;
-                m_recordingWindowDurationMs = node.timeMs - recordingStartAbsMs;
-                break;
-            }
-        }
-    }
-
-    // Seek to block start so playback begins at the right position
-    if (wavOk && m_bgmBlockEndMs > m_bgmBlockStartMs) {
-        const double fileSR = static_cast<double>(m_bgmPlayer.getSampleRate());
-        const int64_t startSamples = static_cast<int64_t>((m_bgmBlockStartMs / 1000.0) * fileSR);
-        m_bgmPlayer.seekToSample(startSamples);
-    }
-
-    return wavOk;
+    return BGMLoadResult::Success;
 }
 
 std::optional<ReclistData> KiraNastroProcessor::getReclistData() const
