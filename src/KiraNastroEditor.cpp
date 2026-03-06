@@ -16,6 +16,7 @@ KiraNastroEditor::KiraNastroEditor(KiraNastroProcessor &p) : AudioProcessorEdito
 {
     setLookAndFeel(&m_lookAndFeel);
     juce::LookAndFeel::setDefaultLookAndFeel(&m_lookAndFeel);
+    m_lookAndFeel.setDarkMode(m_audioProcessor.getDarkMode());
 
     // Load brand logo from embedded SVG
     if (auto xml = juce::XmlDocument::parse(
@@ -358,7 +359,9 @@ void KiraNastroEditor::showMenu()
                                           });
             }
             else if (result == 3) {
-                m_lookAndFeel.setDarkMode(!m_lookAndFeel.getDarkMode());
+                const bool newDark = !m_lookAndFeel.getDarkMode();
+                m_lookAndFeel.setDarkMode(newDark);
+                m_audioProcessor.setDarkMode(newDark);
                 reloadChipIcons();
                 repaint();
             }

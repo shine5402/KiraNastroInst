@@ -209,14 +209,43 @@ juce::AudioProcessorEditor *KiraNastroProcessor::createEditor()
 }
 
 //==============================================================================
-void KiraNastroProcessor::getStateInformation(juce::MemoryBlock & /*destData*/)
+void KiraNastroProcessor::getStateInformation(juce::MemoryBlock &destData)
 {
-    // TODO Phase 6: save reclist path, BGM path, currentEntryIndex, settings
+    auto xml = std::make_unique<juce::XmlElement>("KiraNastroState");
+    xml->setAttribute("version", 1);
+    xml->setAttribute("reclistPath", m_reclistFilePath);
+    xml->setAttribute("bgmWavPath", m_bgmWavFilePath);
+    xml->setAttribute("darkMode", m_darkMode);
+    copyXmlToBinary(*xml, destData);
 }
 
-void KiraNastroProcessor::setStateInformation(const void * /*data*/, int /*sizeInBytes*/)
+void KiraNastroProcessor::setStateInformation(const void *data, int sizeInBytes)
 {
-    // TODO Phase 6: restore session state
+    auto xml = getXmlFromBinary(data, sizeInBytes);
+    if (!xml || xml->getTagName() != "KiraNastroState")
+        return;
+
+    m_darkMode = xml->getBoolAttribute("darkMode", false);
+
+    const auto reclistPath = xml->getStringAttribute("reclistPath");
+    if (reclistPath.isNotEmpty()) {
+        juce::File f(reclistPath);
+        if (f.existsAsFile())
+            loadReclist(f);
+    }
+
+    const auto bgmWavPath = xml->getStringAttribute("bgmWavPath");
+    if (bgmWavPath.isNotEmpty()) {
+        juce::File f(bgmWavPath);
+        if (f.existsAsFile())
+            loadGuideBGM(f);
+    }
+
+    // Clear timing state — we have no reliable position after a state restore.
+    // Everything will re-sync on the next play.
+    m_currentEntryIndex.store(0);
+    m_projectPlayPositionSeconds.store(0.0, std::memory_order_relaxed);
+    m_bgmLoopProgress.store(0.0f, std::memory_order_relaxed);
 }
 
 //==============================================================================
@@ -230,11 +259,13 @@ bool KiraNastroProcessor::loadReclist(const juce::File &reclistFile)
     m_reclistData = result;
 
     if (result.has_value()) {
+        m_reclistFilePath = reclistFile.getFullPathName();
         m_currentEntryIndex.store(0);
         m_totalEntries.store(static_cast<int>(result->entries.size()));
         return true;
     }
 
+    m_reclistFilePath = {};
     m_totalEntries.store(0);
     return false;
 }
@@ -251,8 +282,11 @@ KiraNastroProcessor::BGMLoadResult KiraNastroProcessor::loadGuideBGM(const juce:
         return BGMLoadResult::TimingFileInvalid;
 
     bool wavOk = m_bgmPlayer.loadFile(wavFile);
-    if (!wavOk)
+    if (!wavOk) {
+        m_bgmWavFilePath = {};
         return BGMLoadResult::WavLoadFailed;
+    }
+    m_bgmWavFilePath = wavFile.getFullPathName();
 
     {
         juce::ScopedLock sl(m_dataLock);

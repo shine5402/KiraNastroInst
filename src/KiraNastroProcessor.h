@@ -89,6 +89,10 @@ public:
     bool isBGMPlaying() const;
     double getBGMLengthSeconds() const;
 
+    // Dark mode preference (persisted in state)
+    bool getDarkMode() const { return m_darkMode; }
+    void setDarkMode(bool dark) { m_darkMode = dark; }
+
     //==============================================================================
     // Public member variables
     std::atomic<int> m_currentEntryIndex{0};
@@ -120,6 +124,11 @@ private:
 
     bool m_isBGMPlayingFlag = false;       // standalone only
     bool m_wasDAWPlayingLastBlock = false; // plugin mode: detect play→stop→play
+
+    // Persisted state
+    juce::String m_reclistFilePath;
+    juce::String m_bgmWavFilePath;
+    bool m_darkMode = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KiraNastroProcessor)
 };
