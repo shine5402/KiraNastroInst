@@ -65,9 +65,88 @@ TEST_CASE("detectEncoding: SJIS lead with invalid trail -> Unknown", "[TextEncod
 TEST_CASE("detectEncoding: isolated high byte (not ASCII, not SJIS, not UTF-8) -> Unknown",
           "[TextEncoding]")
 {
-    // 0xFE is not a valid UTF-8 lead or SJIS lead byte
-    const uint8_t bytes[] = { 0xFE, 0xFF };
+    // 0x80 is not a valid UTF-8 lead, SJIS lead, or known BOM byte
+    const uint8_t bytes[] = { 0x80, 0x80 };
     CHECK(TextEncoding::detectEncoding(mb(bytes)) == TextEncoding::Encoding::Unknown);
+}
+
+// ── UTF-16 BOM detection ───────────────────────────────────────────────────────
+
+TEST_CASE("detectEncoding: UTF-16 LE BOM (FF FE) -> UTF16LE", "[TextEncoding]")
+{
+    // FF FE followed by 'h' 'i' in LE encoding
+    const uint8_t bytes[] = { 0xFF, 0xFE, 0x68, 0x00, 0x69, 0x00 };
+    CHECK(TextEncoding::detectEncoding(mb(bytes)) == TextEncoding::Encoding::UTF16LE);
+}
+
+TEST_CASE("detectEncoding: UTF-16 BE BOM (FE FF) -> UTF16BE", "[TextEncoding]")
+{
+    // FE FF followed by 'h' 'i' in BE encoding
+    const uint8_t bytes[] = { 0xFE, 0xFF, 0x00, 0x68, 0x00, 0x69 };
+    CHECK(TextEncoding::detectEncoding(mb(bytes)) == TextEncoding::Encoding::UTF16BE);
+}
+
+TEST_CASE("detectEncoding: UTF-16 LE BOM only (2 bytes) -> UTF16LE", "[TextEncoding]")
+{
+    const uint8_t bytes[] = { 0xFF, 0xFE };
+    CHECK(TextEncoding::detectEncoding(mb(bytes)) == TextEncoding::Encoding::UTF16LE);
+}
+
+TEST_CASE("detectEncoding: UTF-16 BE BOM only (2 bytes) -> UTF16BE", "[TextEncoding]")
+{
+    const uint8_t bytes[] = { 0xFE, 0xFF };
+    CHECK(TextEncoding::detectEncoding(mb(bytes)) == TextEncoding::Encoding::UTF16BE);
+}
+
+// ── utf16ToString ──────────────────────────────────────────────────────────────
+
+TEST_CASE("utf16ToString: too short (< 4 bytes) -> empty", "[TextEncoding]")
+{
+    const uint8_t bom_only[] = { 0xFF, 0xFE };
+    CHECK(TextEncoding::utf16ToString(bom_only, sizeof(bom_only), false).isEmpty());
+
+    const uint8_t three_bytes[] = { 0xFF, 0xFE, 0x68 };
+    CHECK(TextEncoding::utf16ToString(three_bytes, sizeof(three_bytes), false).isEmpty());
+}
+
+TEST_CASE("utf16ToString: UTF-16 LE ASCII string", "[TextEncoding]")
+{
+    // BOM + "hi" in UTF-16 LE
+    const uint8_t bytes[] = { 0xFF, 0xFE, 0x68, 0x00, 0x69, 0x00 };
+    CHECK(TextEncoding::utf16ToString(bytes, sizeof(bytes), false) == juce::String("hi"));
+}
+
+TEST_CASE("utf16ToString: UTF-16 BE ASCII string", "[TextEncoding]")
+{
+    // BOM + "hi" in UTF-16 BE
+    const uint8_t bytes[] = { 0xFE, 0xFF, 0x00, 0x68, 0x00, 0x69 };
+    CHECK(TextEncoding::utf16ToString(bytes, sizeof(bytes), true) == juce::String("hi"));
+}
+
+TEST_CASE("utf16ToString: UTF-16 LE Japanese character U+3042 (あ)", "[TextEncoding]")
+{
+    // BOM + U+3042 in UTF-16 LE: 42 30
+    const uint8_t bytes[] = { 0xFF, 0xFE, 0x42, 0x30 };
+    auto result = TextEncoding::utf16ToString(bytes, sizeof(bytes), false);
+    CHECK(result == juce::String::fromUTF8("\xe3\x81\x82")); // "あ" in UTF-8
+}
+
+TEST_CASE("utf16ToString: UTF-16 BE Japanese character U+3042 (あ)", "[TextEncoding]")
+{
+    // BOM + U+3042 in UTF-16 BE: 30 42
+    const uint8_t bytes[] = { 0xFE, 0xFF, 0x30, 0x42 };
+    auto result = TextEncoding::utf16ToString(bytes, sizeof(bytes), true);
+    CHECK(result == juce::String::fromUTF8("\xe3\x81\x82")); // "あ" in UTF-8
+}
+
+TEST_CASE("utf16ToString: LE and BE produce identical strings for same content", "[TextEncoding]")
+{
+    // "ok" in UTF-16 LE (BOM + 6F 00 6B 00)
+    const uint8_t le[] = { 0xFF, 0xFE, 0x6F, 0x00, 0x6B, 0x00 };
+    // "ok" in UTF-16 BE (BOM + 00 6F 00 6B)
+    const uint8_t be[] = { 0xFE, 0xFF, 0x00, 0x6F, 0x00, 0x6B };
+    CHECK(TextEncoding::utf16ToString(le, sizeof(le), false) ==
+          TextEncoding::utf16ToString(be, sizeof(be), true));
 }
 
 TEST_CASE("detectEncoding: SJIS half-width katakana (single-byte 0xA1-0xDF) -> ShiftJIS",

@@ -12,6 +12,8 @@ namespace TextEncoding
 enum class Encoding
 {
     UTF8,
+    UTF16LE,
+    UTF16BE,
     ShiftJIS,
     Unknown
 };
@@ -23,4 +25,7 @@ Encoding detectEncoding(const juce::MemoryBlock &data);
 
 // Convert Shift-JIS encoded bytes to a JUCE String (UTF-8 internally).
 juce::String shiftJisToString(const void *data, size_t numBytes);
+
+// Convert UTF-16 LE or BE encoded bytes (including BOM) to a JUCE String.
+juce::String utf16ToString(const void *data, size_t numBytes, bool bigEndian);
 } // namespace TextEncoding

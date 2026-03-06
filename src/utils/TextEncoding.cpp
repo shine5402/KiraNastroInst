@@ -12,6 +12,7 @@
 #include <iconv.h>
 #endif
 
+#include <cstring>
 #include <vector>
 
 namespace TextEncoding
@@ -23,6 +24,12 @@ Encoding detectEncoding(const juce::MemoryBlock &data)
 
     if (size == 0)
         return Encoding::UTF8;
+
+    // UTF-16 BOMs must be checked before UTF-8 validation
+    if (size >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
+        return Encoding::UTF16LE;
+    if (size >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
+        return Encoding::UTF16BE;
 
     // UTF-8 BOM: EF BB BF
     if (size >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
@@ -162,6 +169,31 @@ juce::String shiftJisToString(const void *data, size_t numBytes)
     iconv_close(cd);
     return juce::String::fromUTF8(outBuf.data());
 #endif
+}
+
+juce::String utf16ToString(const void *rawData, size_t numBytes, bool bigEndian)
+{
+    // Requires at least a BOM (2 bytes) plus one character (2 bytes)
+    if (numBytes < 4)
+        return {};
+
+    // Skip BOM
+    const auto *bytes = static_cast<const uint8_t *>(rawData) + 2;
+    const size_t remaining = numBytes - 2;
+    const size_t numChars = remaining / 2;
+
+    std::vector<uint16_t> buf(numChars + 1, 0);
+    std::memcpy(buf.data(), bytes, numChars * 2);
+
+    if (bigEndian) {
+        for (size_t i = 0; i < numChars; ++i) {
+            const uint16_t v = buf[i];
+            buf[i] = static_cast<uint16_t>((v >> 8) | (v << 8));
+        }
+    }
+
+    return juce::String(juce::CharPointer_UTF16(
+        reinterpret_cast<const juce::CharPointer_UTF16::CharType *>(buf.data())));
 }
 
 } // namespace TextEncoding

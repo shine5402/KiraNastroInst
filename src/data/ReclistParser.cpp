@@ -11,9 +11,19 @@ static juce::String readFileDecoded(const juce::File &file)
     if (!file.loadFileAsData(data) || data.isEmpty())
         return {};
     auto enc = TextEncoding::detectEncoding(data);
-    if (enc == TextEncoding::Encoding::ShiftJIS)
-        return TextEncoding::shiftJisToString(data.getData(), data.getSize());
-    return juce::String::fromUTF8(static_cast<const char *>(data.getData()), static_cast<int>(data.getSize()));
+    switch (enc) {
+        case TextEncoding::Encoding::UTF16LE:
+            return TextEncoding::utf16ToString(data.getData(), data.getSize(), false);
+        case TextEncoding::Encoding::UTF16BE:
+            return TextEncoding::utf16ToString(data.getData(), data.getSize(), true);
+        case TextEncoding::Encoding::ShiftJIS:
+            return TextEncoding::shiftJisToString(data.getData(), data.getSize());
+        case TextEncoding::Encoding::Unknown:
+            return {};
+        case TextEncoding::Encoding::UTF8:
+        default:
+            return juce::String::fromUTF8(static_cast<const char *>(data.getData()), static_cast<int>(data.getSize()));
+    }
 }
 
 std::optional<ReclistData> ReclistParser::load(const juce::File &reclistFile)

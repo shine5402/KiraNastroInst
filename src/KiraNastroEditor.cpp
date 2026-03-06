@@ -313,8 +313,14 @@ void KiraNastroEditor::showMenu()
                                                   juce::FileBrowserComponent::canSelectFiles,
                                               [this](const juce::FileChooser &f) {
                                                   auto file = f.getResult();
-                                                  if (file.exists())
-                                                      m_audioProcessor.loadReclist(file);
+                                                  if (file.exists()) {
+                                                      if (!m_audioProcessor.loadReclist(file))
+                                                          MD3Dialog::show("Failed to Load Reclist",
+                                                                          "The selected file could not be read as a reclist. "
+                                                                          "It may be in an unsupported encoding or format. "
+                                                                          "KiraNastro inst. supports UTF-8 and Shift-JIS text files.",
+                                                                          "OK", this);
+                                                  }
                                                   m_reclistChooser.reset();
                                               });
             }
