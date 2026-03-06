@@ -44,6 +44,10 @@ public:
     static const juce::Colour md3OnSurfaceDark;               // #E3E1E9
     static const juce::Colour md3OutlineVariantDark;          // #45464F
 
+    // MD3 Tertiary Container tokens (T90 light / T30 dark)
+    static const juce::Colour md3TertiaryContainer;     // #CEE5FF
+    static const juce::Colour md3TertiaryContainerDark; // #254A69
+
     // MD3 Scrim token (same for both themes)
     static const juce::Colour md3Scrim; // #000000 @ 32% opacity
 
@@ -69,6 +73,7 @@ public:
     juce::Colour surfaceContainerHighest() const;
     juce::Colour onSurface() const;
     juce::Colour outlineVariant() const;
+    juce::Colour tertiaryContainer() const;
     juce::Colour scrim() const;
 
     // MD3 filled button / text button (auto-detects AlertWindow context)

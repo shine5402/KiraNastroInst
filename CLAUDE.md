@@ -217,6 +217,7 @@ The plugin window has a compact, horizontal layout:
 - **Background**: Light blue/white gradient
 - **Cards**: Rounded corners, subtle shadows
 - **Typography**: Sarasa UI JP (body text, CJK), Lexend (brand name)
+- **Color Reference**: `design/material-theme.json` is the Material Theme Builder export for this project — it is the authoritative source for all MD3 color tokens (primary, secondary, tertiary palettes, surface roles, etc.). Always consult it when adding new color tokens.
 
 ### Fonts
 - **UI Font**: Sarasa UI JP — embedded in `resources/fonts/` (Regular, SemiBold, Bold weights)

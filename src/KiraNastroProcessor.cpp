@@ -265,6 +265,19 @@ KiraNastroProcessor::BGMLoadResult KiraNastroProcessor::loadGuideBGM(const juce:
     m_recordingStartOffsetMs    = t.recordingStartMs - t.bgmPlaybackStartMs;
     m_recordingWindowDurationMs = t.recordingEndMs   - t.recordingStartMs;
 
+    const double blockDurationMs = t.bgmLoopMs - t.bgmPlaybackStartMs;
+    if (blockDurationMs > 0.0) {
+        m_utteranceStartFraction.store(
+            static_cast<float>((t.utteranceStartMs - t.bgmPlaybackStartMs) / blockDurationMs),
+            std::memory_order_relaxed);
+        m_utteranceEndFraction.store(
+            static_cast<float>((t.utteranceEndMs - t.bgmPlaybackStartMs) / blockDurationMs),
+            std::memory_order_relaxed);
+    } else {
+        m_utteranceStartFraction.store(0.333f, std::memory_order_relaxed);
+        m_utteranceEndFraction.store(0.667f, std::memory_order_relaxed);
+    }
+
     // Seek to block start
     const double fileSR = static_cast<double>(m_bgmPlayer.getSampleRate());
     const int64_t startSamples = static_cast<int64_t>((m_bgmBlockStartMs / 1000.0) * fileSR);

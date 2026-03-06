@@ -5,8 +5,9 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
-// Phase 4: Pie chart widget showing the current position within the BGM cycle.
-// Reads a normalised [0,1] progress value and repaints on a timer tick.
+// Pie chart + vertical fill bar widget showing BGM cycle progress and utterance stage.
+// Total size: 48×32 (32px pie | 8px gap | 8px bar).
+// The bar shows overall progress; the pie shows the current performance stage.
 class TimingIndicator : public juce::Component
 {
 public:
@@ -16,17 +17,25 @@ public:
     void paint(juce::Graphics &g) override;
     void resized() override;
 
-    // Set the progress value [0.0, 1.0] — call from the editor's timer
+    // Set the overall progress value [0.0, 1.0] — call from the editor's timer
     void setProgress(float newProgress)
     {
         m_progress = newProgress;
         repaint();
     }
 
-    // TODO Phase 4: draw filled arc, border, cue markers
+    // Set utterance stage boundaries — call when BGM is loaded
+    void setStageBoundaries(float utteranceStartFraction, float utteranceEndFraction)
+    {
+        m_utteranceStartFraction = utteranceStartFraction;
+        m_utteranceEndFraction   = utteranceEndFraction;
+        repaint();
+    }
 
 private:
-    float m_progress = 0.0f;
+    float m_progress               = 0.0f;
+    float m_utteranceStartFraction = 0.333f;
+    float m_utteranceEndFraction   = 0.667f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimingIndicator)
 };

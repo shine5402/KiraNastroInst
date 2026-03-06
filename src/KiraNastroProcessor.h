@@ -95,6 +95,8 @@ public:
     std::atomic<double> m_projectPlayPositionSeconds{0.0};
     std::atomic<float> m_bgmLoopProgress{0.0f};
     std::atomic<int> m_totalEntries{0};
+    std::atomic<float> m_utteranceStartFraction{0.333f};
+    std::atomic<float> m_utteranceEndFraction{0.667f};
 
 private:
     // Private member variables

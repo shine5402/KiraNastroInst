@@ -41,6 +41,10 @@ const juce::Colour KiraNastroLookAndFeel::md3SurfaceContainerHighestDark{0xFF292
 const juce::Colour KiraNastroLookAndFeel::md3OnSurfaceDark{0xFFE3E1E9};
 const juce::Colour KiraNastroLookAndFeel::md3OutlineVariantDark{0xFF45464F};
 
+// MD3 Tertiary Container tokens
+const juce::Colour KiraNastroLookAndFeel::md3TertiaryContainer{0xFFCEE5FF};
+const juce::Colour KiraNastroLookAndFeel::md3TertiaryContainerDark{0xFF254A69};
+
 // MD3 Scrim token (same for both themes)
 const juce::Colour KiraNastroLookAndFeel::md3Scrim{0x52000000};
 
@@ -138,6 +142,11 @@ juce::Colour KiraNastroLookAndFeel::onSurface() const
 juce::Colour KiraNastroLookAndFeel::outlineVariant() const
 {
     return m_isDark ? md3OutlineVariantDark : md3OutlineVariant;
+}
+
+juce::Colour KiraNastroLookAndFeel::tertiaryContainer() const
+{
+    return m_isDark ? md3TertiaryContainerDark : md3TertiaryContainer;
 }
 
 juce::Colour KiraNastroLookAndFeel::scrim() const

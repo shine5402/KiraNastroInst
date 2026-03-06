@@ -4,6 +4,7 @@
 #include "KiraNastroEditor.h"
 
 #include <cmath>
+#include <cstring>
 
 #include "BinaryDataImages.h"
 #include "data/LabelExporter.h"
@@ -209,7 +210,7 @@ void KiraNastroEditor::paint(juce::Graphics &g)
 void KiraNastroEditor::resized()
 {
     // TimingIndicator: bottom-right inside card padding
-    m_timingIndicator->setBounds(720, 84, 32, 32);
+    m_timingIndicator->setBounds(720, 84, 48, 32);
 
     // Hamburger menu button: 24x24 (same as nav bar logo), right-aligned,
     // vertically centred Nav bar: y=192, h=40 → icon y = 192 + (40-24)/2 = 200; x
@@ -242,6 +243,22 @@ void KiraNastroEditor::timerCallback()
     }
 
     m_timingIndicator->setProgress(m_audioProcessor.m_bgmLoopProgress.load(std::memory_order_relaxed));
+
+    const float uStart = m_audioProcessor.m_utteranceStartFraction.load(std::memory_order_relaxed);
+    const float uEnd   = m_audioProcessor.m_utteranceEndFraction.load(std::memory_order_relaxed);
+    // Use bitwise comparison to avoid -Wfloat-equal; we want exact change detection.
+    auto floatBitsEqual = [](float a, float b) noexcept -> bool {
+        uint32_t ai, bi;
+        std::memcpy(&ai, &a, 4);
+        std::memcpy(&bi, &b, 4);
+        return ai == bi;
+    };
+    if (!floatBitsEqual(uStart, m_cachedUtteranceStartFraction) ||
+        !floatBitsEqual(uEnd, m_cachedUtteranceEndFraction)) {
+        m_cachedUtteranceStartFraction = uStart;
+        m_cachedUtteranceEndFraction   = uEnd;
+        m_timingIndicator->setStageBoundaries(uStart, uEnd);
+    }
 
     if (m_progressSlider && m_audioProcessor.isBGMLoaded()) {
         const double currentPos = m_audioProcessor.m_projectPlayPositionSeconds.load();

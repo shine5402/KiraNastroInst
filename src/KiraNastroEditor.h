@@ -34,6 +34,8 @@ private:
     juce::String m_currentEntryComment;
     juce::String m_nextEntryName;
     juce::String m_nextEntryComment;
+    float m_cachedUtteranceStartFraction = -1.0f; // -1 forces initial push
+    float m_cachedUtteranceEndFraction   = -1.0f;
 
     // File choosers
     std::unique_ptr<juce::FileChooser> m_reclistChooser;
