@@ -3,16 +3,19 @@
 
 #include "BGMPlayer.h"
 
+#include "OpusAudioFormat.h"
+
 BGMPlayer::BGMPlayer()
 {
     m_formatManager.registerBasicFormats();
+    m_formatManager.registerFormat(new OpusAudioFormat(), false);
 }
 
-bool BGMPlayer::loadFile(const juce::File &wavFile)
+bool BGMPlayer::loadFile(const juce::File &audioFile)
 {
     unload();
 
-    std::unique_ptr<juce::AudioFormatReader> reader(m_formatManager.createReaderFor(wavFile));
+    std::unique_ptr<juce::AudioFormatReader> reader(m_formatManager.createReaderFor(audioFile));
 
     if (reader == nullptr)
         return false;
@@ -36,6 +39,11 @@ bool BGMPlayer::loadFile(const juce::File &wavFile)
         m_playbackRatio = static_cast<double>(m_loadedSampleRate) / m_hostSampleRate;
 
     return true;
+}
+
+juce::String BGMPlayer::getWildcardForAllFormats() const
+{
+    return m_formatManager.getWildcardForAllFormats();
 }
 
 void BGMPlayer::unload()

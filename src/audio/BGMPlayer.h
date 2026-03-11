@@ -7,15 +7,15 @@
 #include <juce_audio_formats/juce_audio_formats.h>
 
 // BGM playback engine.
-// Loads a WAV file into memory and exposes it for rendering in processBlock.
-// Phase 3 will add the actual playback/seeking API.
+// Loads an audio file into memory and exposes it for rendering in processBlock.
 class BGMPlayer
 {
 public:
     BGMPlayer();
     ~BGMPlayer() = default;
 
-    bool loadFile(const juce::File &wavFile);
+    bool loadFile(const juce::File &audioFile);
+    juce::String getWildcardForAllFormats() const;
     void unload();
 
     bool isLoaded() const noexcept { return m_loaded; }

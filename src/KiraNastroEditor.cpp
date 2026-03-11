@@ -326,7 +326,7 @@ void KiraNastroEditor::showMenu()
                                               });
             }
             else if (result == 2) {
-                m_bgmChooser = std::make_unique<juce::FileChooser>("Select BGM File", juce::File(), "*.wav");
+                m_bgmChooser = std::make_unique<juce::FileChooser>("Select BGM File", juce::File(), m_audioProcessor.getSupportedAudioExtensions());
                 m_bgmChooser->launchAsync(juce::FileBrowserComponent::openMode |
                                               juce::FileBrowserComponent::canSelectFiles,
                                           [this](const juce::FileChooser &f) {
@@ -337,12 +337,12 @@ void KiraNastroEditor::showMenu()
                                                   switch (bgmResult) {
                                                       case KiraNastroProcessor::BGMLoadResult::Success:
                                                           break;
-                                                      case KiraNastroProcessor::BGMLoadResult::WavLoadFailed:
-                                                          msg = "The selected WAV file could not be loaded. "
-                                                                "It may be corrupted or in an unsupported format.";
+                                                      case KiraNastroProcessor::BGMLoadResult::AudioLoadFailed:
+                                                          msg = "The selected audio file could not be loaded. "
+                                                                "It may be corrupted or in a format not supported on this platform.";
                                                           break;
                                                       case KiraNastroProcessor::BGMLoadResult::TimingFileMissing:
-                                                          msg = "No timing description file was found alongside the WAV file. "
+                                                          msg = "No timing description file was found alongside the audio file. "
                                                                 "Place the OREMO timing file (.txt) in the same folder "
                                                                 "with the same base name (e.g. Jazz-100-A.txt).";
                                                           break;

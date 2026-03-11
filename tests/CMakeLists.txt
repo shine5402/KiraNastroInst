@@ -15,6 +15,7 @@ target_sources(KiraNastro_Tests PRIVATE
     ../src/data/GuideBGMParser.cpp
     ../src/data/LabelExporter.cpp
     ../src/audio/BGMPlayer.cpp
+    ../src/audio/OpusAudioFormat.cpp
 )
 
 target_include_directories(KiraNastro_Tests PRIVATE
@@ -24,12 +25,14 @@ target_include_directories(KiraNastro_Tests PRIVATE
 target_compile_definitions(KiraNastro_Tests PRIVATE
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
+    JUCE_USE_MP3AUDIOFORMAT=1
     TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/testdata"
 )
 
 # juce_audio_formats brings in juce_audio_basics and juce_core transitively
 target_link_libraries(KiraNastro_Tests PRIVATE
     juce::juce_audio_formats
+    opusfile
     Catch2::Catch2WithMain
     juce::juce_recommended_config_flags
     juce::juce_recommended_warning_flags

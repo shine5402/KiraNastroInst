@@ -26,9 +26,9 @@ static juce::String readFileDecoded(const juce::File &file)
     }
 }
 
-std::optional<GuideBGMData> GuideBGMParser::load(const juce::File &wavFile)
+std::optional<GuideBGMData> GuideBGMParser::load(const juce::File &audioFile)
 {
-    return loadFromTimingFile(wavFile.withFileExtension("txt"));
+    return loadFromTimingFile(audioFile.withFileExtension("txt"));
 }
 
 std::optional<GuideBGMData> GuideBGMParser::loadFromTimingFile(const juce::File &timingFile)

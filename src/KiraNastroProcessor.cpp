@@ -212,9 +212,9 @@ juce::AudioProcessorEditor *KiraNastroProcessor::createEditor()
 void KiraNastroProcessor::getStateInformation(juce::MemoryBlock &destData)
 {
     auto xml = std::make_unique<juce::XmlElement>("KiraNastroState");
-    xml->setAttribute("version", 1);
+    xml->setAttribute("version", 2);
     xml->setAttribute("reclistPath", m_reclistFilePath);
-    xml->setAttribute("bgmWavPath", m_bgmWavFilePath);
+    xml->setAttribute("bgmAudioPath", m_bgmAudioFilePath);
     xml->setAttribute("darkMode", m_darkMode);
     copyXmlToBinary(*xml, destData);
 }
@@ -234,9 +234,12 @@ void KiraNastroProcessor::setStateInformation(const void *data, int sizeInBytes)
             loadReclist(f);
     }
 
-    const auto bgmWavPath = xml->getStringAttribute("bgmWavPath");
-    if (bgmWavPath.isNotEmpty()) {
-        juce::File f(bgmWavPath);
+    // Read "bgmAudioPath" (v2+) with fallback to "bgmWavPath" (v1 legacy)
+    auto bgmAudioPath = xml->getStringAttribute("bgmAudioPath");
+    if (bgmAudioPath.isEmpty())
+        bgmAudioPath = xml->getStringAttribute("bgmWavPath");
+    if (bgmAudioPath.isNotEmpty()) {
+        juce::File f(bgmAudioPath);
         if (f.existsAsFile())
             loadGuideBGM(f);
     }
@@ -270,23 +273,23 @@ bool KiraNastroProcessor::loadReclist(const juce::File &reclistFile)
     return false;
 }
 
-KiraNastroProcessor::BGMLoadResult KiraNastroProcessor::loadGuideBGM(const juce::File &wavFile)
+KiraNastroProcessor::BGMLoadResult KiraNastroProcessor::loadGuideBGM(const juce::File &audioFile)
 {
     // Check timing file first — gives the most specific error
-    auto timingFile = wavFile.withFileExtension("txt");
+    auto timingFile = audioFile.withFileExtension("txt");
     if (!timingFile.existsAsFile())
         return BGMLoadResult::TimingFileMissing;
 
-    auto timingResult = GuideBGMParser::load(wavFile);
+    auto timingResult = GuideBGMParser::load(audioFile);
     if (!timingResult.has_value())
         return BGMLoadResult::TimingFileInvalid;
 
-    bool wavOk = m_bgmPlayer.loadFile(wavFile);
-    if (!wavOk) {
-        m_bgmWavFilePath = {};
-        return BGMLoadResult::WavLoadFailed;
+    bool audioOk = m_bgmPlayer.loadFile(audioFile);
+    if (!audioOk) {
+        m_bgmAudioFilePath = {};
+        return BGMLoadResult::AudioLoadFailed;
     }
-    m_bgmWavFilePath = wavFile.getFullPathName();
+    m_bgmAudioFilePath = audioFile.getFullPathName();
 
     {
         juce::ScopedLock sl(m_dataLock);
@@ -445,6 +448,11 @@ KiraNastroProcessor::DescExportParams KiraNastroProcessor::getDescExportParams()
     p.recordingStartOffsetSec = m_recordingStartOffsetMs / 1000.0;
     p.recordingWindowDurationSec = m_recordingWindowDurationMs / 1000.0;
     return p;
+}
+
+juce::String KiraNastroProcessor::getSupportedAudioExtensions() const
+{
+    return m_bgmPlayer.getWildcardForAllFormats();
 }
 
 //==============================================================================

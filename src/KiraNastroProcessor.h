@@ -58,11 +58,13 @@ public:
     enum class BGMLoadResult
     {
         Success,
-        WavLoadFailed,      // WAV file missing or unreadable
+        AudioLoadFailed,    // Audio file missing or unreadable
         TimingFileMissing,  // No sibling .txt found
         TimingFileInvalid,  // .txt found but not valid OREMO 6-row format
     };
-    BGMLoadResult loadGuideBGM(const juce::File &wavFile);
+    BGMLoadResult loadGuideBGM(const juce::File &audioFile);
+
+    juce::String getSupportedAudioExtensions() const;
 
     // Thread-safe accessors — return copies under lock
     std::optional<ReclistData> getReclistData() const;
@@ -127,7 +129,7 @@ private:
 
     // Persisted state
     juce::String m_reclistFilePath;
-    juce::String m_bgmWavFilePath;
+    juce::String m_bgmAudioFilePath;
     bool m_darkMode = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KiraNastroProcessor)

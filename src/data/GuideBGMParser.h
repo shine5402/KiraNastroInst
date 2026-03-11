@@ -28,8 +28,8 @@ struct GuideBGMData
 class GuideBGMParser
 {
 public:
-    // Finds sibling .txt with same basename as .wav
-    static std::optional<GuideBGMData> load(const juce::File &wavFile);
+    // Finds sibling .txt with same basename as audio file
+    static std::optional<GuideBGMData> load(const juce::File &audioFile);
 
     // Direct parse from timing file
     static std::optional<GuideBGMData> loadFromTimingFile(const juce::File &timingFile);
