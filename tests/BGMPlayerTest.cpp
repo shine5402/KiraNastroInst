@@ -5,7 +5,17 @@
 #include <catch2/catch_test_macros.hpp>
 
 // Bundled test data — see tests/testdata/NOTES.md for license info
-static constexpr const char *kJazzWavPath = TEST_DATA_DIR "/Jazz-100-A.wav";
+static constexpr const char *kJazzWavPath  = TEST_DATA_DIR "/Jazz-100-A.wav";
+static constexpr const char *kFlacPath     = TEST_DATA_DIR "/test_stereo.flac";
+static constexpr const char *kOggPath      = TEST_DATA_DIR "/test_stereo.ogg";
+static constexpr const char *kMp3Path      = TEST_DATA_DIR "/test_stereo.mp3";
+static constexpr const char *kOpusPath     = TEST_DATA_DIR "/test_stereo.opus";
+static constexpr const char *kAiffPath     = TEST_DATA_DIR "/test_stereo.aiff";
+static constexpr const char *kMonoFlacPath = TEST_DATA_DIR "/test_mono.flac";
+// AAC and ALAC are platform-dependent (CoreAudio on macOS, WindowsMediaAudio
+// on Windows) — tests are skipped automatically when the files aren't readable.
+static constexpr const char *kAacPath      = TEST_DATA_DIR "/test_stereo_aac.m4a";
+static constexpr const char *kAlacPath     = TEST_DATA_DIR "/test_stereo_alac.m4a";
 
 // ── Initial state
 // ─────────────────────────────────────────────────────────────
@@ -270,4 +280,128 @@ TEST_CASE("BGMPlayer: does NOT auto-stop at end of file", "[BGMPlayer]") {
 
   // The player must still be "playing" — it did NOT call stop()
   CHECK(player.isPlaying() == true);
+}
+
+// ── Multi-format loading ─────────────────────────────────────────────────────
+// Each test file is a 2-second stereo excerpt of Jazz-100-A.wav encoded with
+// ffmpeg.  Tests verify that BGMPlayer can load and render audio for every
+// format that registerBasicFormats() + OpusAudioFormat cover.
+
+// Shared helper: load a file, verify basic properties, render a block, check
+// the output is non-silent.  Returns false (causing SKIP) if the file doesn't
+// exist on this machine.
+static void checkFormatLoad(const char *path, int expectedChannels,
+                             int minSampleRate)
+{
+    juce::File f(path);
+    if (!f.existsAsFile())
+        SKIP(juce::String(path).fromLastOccurrenceOf("/", false, false) + " not found");
+
+    BGMPlayer player;
+    REQUIRE(player.loadFile(f) == true);
+    CHECK(player.isLoaded() == true);
+    CHECK(player.getSampleRate() >= minSampleRate);
+    CHECK(player.getNumChannels() == expectedChannels);
+    CHECK(player.getTotalSamples() > 0);
+
+    // Duration sanity: the clips are 2 s — accept 1–10 s to accommodate
+    // encoder/decoder padding (MP3 has ~1152-sample frame padding, Opus has
+    // a pre-roll).
+    const double dur = static_cast<double>(player.getTotalSamples()) /
+                       static_cast<double>(player.getSampleRate());
+    CHECK(dur > 1.0);
+    CHECK(dur < 10.0);
+
+    // Render a block 1 second in and confirm we get non-silent output
+    player.prepareToPlay(player.getSampleRate(), 512);
+    player.seekToSample(static_cast<int64_t>(player.getSampleRate())); // 1 s in
+    player.play();
+
+    juce::AudioBuffer<float> buf(expectedChannels, 512);
+    buf.clear();
+    player.renderNextBlock(buf, 0, 512);
+
+    CHECK(buf.getMagnitude(0, 512) > 0.0f);
+}
+
+TEST_CASE("BGMPlayer: loads FLAC (stereo)", "[BGMPlayer][formats]") {
+    checkFormatLoad(kFlacPath, 2, 44100);
+}
+
+TEST_CASE("BGMPlayer: loads OGG Vorbis (stereo)", "[BGMPlayer][formats]") {
+    checkFormatLoad(kOggPath, 2, 44100);
+}
+
+TEST_CASE("BGMPlayer: loads MP3 (stereo)", "[BGMPlayer][formats]") {
+    checkFormatLoad(kMp3Path, 2, 44100);
+}
+
+TEST_CASE("BGMPlayer: loads Opus (stereo)", "[BGMPlayer][formats]") {
+    // Opus always decodes to 48 kHz regardless of source sample rate
+    checkFormatLoad(kOpusPath, 2, 48000);
+}
+
+TEST_CASE("BGMPlayer: loads AIFF (stereo)", "[BGMPlayer][formats]") {
+    checkFormatLoad(kAiffPath, 2, 44100);
+}
+
+TEST_CASE("BGMPlayer: loads mono FLAC", "[BGMPlayer][formats]") {
+    checkFormatLoad(kMonoFlacPath, 1, 44100);
+}
+
+// Helper for platform-codec formats (AAC, ALAC): if loadFile() returns false
+// the codec is simply unavailable on this platform — skip rather than fail.
+static void checkPlatformFormatLoad(const char *path, int expectedChannels,
+                                    int minSampleRate)
+{
+    juce::File f(path);
+    if (!f.existsAsFile())
+        SKIP(juce::String(path).fromLastOccurrenceOf("/", false, false) + " not found");
+
+    BGMPlayer player;
+    if (!player.loadFile(f))
+        SKIP(juce::String(path).fromLastOccurrenceOf("/", false, false) +
+             ": codec not available on this platform");
+
+    CHECK(player.isLoaded() == true);
+    CHECK(player.getSampleRate() >= minSampleRate);
+    CHECK(player.getNumChannels() == expectedChannels);
+    CHECK(player.getTotalSamples() > 0);
+
+    const double dur = static_cast<double>(player.getTotalSamples()) /
+                       static_cast<double>(player.getSampleRate());
+    CHECK(dur > 1.0);
+    CHECK(dur < 10.0);
+
+    player.prepareToPlay(player.getSampleRate(), 512);
+    player.seekToSample(static_cast<int64_t>(player.getSampleRate()));
+    player.play();
+
+    juce::AudioBuffer<float> buf(expectedChannels, 512);
+    buf.clear();
+    player.renderNextBlock(buf, 0, 512);
+    CHECK(buf.getMagnitude(0, 512) > 0.0f);
+}
+
+TEST_CASE("BGMPlayer: loads AAC in M4A container (macOS/Windows only)",
+          "[BGMPlayer][formats]") {
+    checkPlatformFormatLoad(kAacPath, 2, 44100);
+}
+
+TEST_CASE("BGMPlayer: loads ALAC in M4A container (macOS/Windows only)",
+          "[BGMPlayer][formats]") {
+    checkPlatformFormatLoad(kAlacPath, 2, 44100);
+}
+
+TEST_CASE("BGMPlayer: getWildcardForAllFormats includes expected extensions",
+          "[BGMPlayer][formats]") {
+    BGMPlayer player;
+    const juce::String wildcards = player.getWildcardForAllFormats();
+
+    CHECK(wildcards.containsIgnoreCase("*.wav"));
+    CHECK(wildcards.containsIgnoreCase("*.flac"));
+    CHECK(wildcards.containsIgnoreCase("*.ogg"));
+    CHECK(wildcards.containsIgnoreCase("*.mp3"));
+    CHECK(wildcards.containsIgnoreCase("*.opus"));
+    CHECK(wildcards.containsIgnoreCase("*.aif"));
 }
