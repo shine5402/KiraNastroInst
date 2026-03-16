@@ -57,9 +57,14 @@ void ProjectSetupScreen::buildUI()
     // --- Reclist combo ---
     m_reclistCombo = std::make_unique<Md3ExpressiveComboBox>("Record List");
     const auto &reclists = BuiltinResources::getReclists();
-    for (const auto &r : reclists)
-        m_reclistCombo->addItem(r.id, juce::String::fromUTF8(r.displayName),
-                                juce::String::fromUTF8(r.attribution));
+    for (const auto &r : reclists) {
+        juce::String supporting = juce::String(r.entryCount) + " entries; "
+                                + juce::String(r.moraCount) + "-mora, "
+                                + juce::String::fromUTF8(r.credits);
+        if (r.hasComment)
+            supporting += " (romaji comment)";
+        m_reclistCombo->addItem(r.id, juce::String::fromUTF8(r.displayName), supporting);
+    }
     m_reclistCombo->setSelectedId(0, juce::dontSendNotification);
     addAndMakeVisible(m_reclistCombo.get());
 
@@ -89,19 +94,25 @@ void ProjectSetupScreen::buildUI()
 
     m_reclistCustomLabel.setJustificationType(juce::Justification::centredLeft);
     m_reclistCustomLabel.setFont(juce::Font(juce::FontOptions(Fonts::getSarasaSemiBold()).withHeight(14.0f)));
+    m_reclistCustomLabel.setColour(juce::Label::textColourId, juce::Colour(0xFF364379)); // onPrimaryContainer
+    m_reclistCustomLabel.setBorderSize(juce::BorderSize<int>(0));
     m_reclistCustomLabel.setInterceptsMouseClicks(false, false);
     m_reclistCustomCard->addAndMakeVisible(m_reclistCustomLabel);
 
-    auto closeIcon1 = Icons::load(Icons::closeSvg, juce::Colour(0xFF45464F));
     m_reclistClearButton = std::make_unique<juce::DrawableButton>("clearReclist",
                                                                    juce::DrawableButton::ImageFitted);
-    if (closeIcon1)
-        m_reclistClearButton->setImages(closeIcon1.get());
+    {
+        auto normal  = Icons::load(Icons::closeSvg, juce::Colour(0xFF45464F).withAlpha(0.55f));
+        auto hover   = Icons::load(Icons::closeSvg, juce::Colour(0xFF45464F).withAlpha(0.80f));
+        auto pressed = Icons::load(Icons::closeSvg, juce::Colour(0xFF45464F));
+        m_reclistClearButton->setImages(normal.get(), hover.get(), pressed.get());
+    }
     m_reclistClearButton->onClick = [this] {
         m_usingCustomReclist = false;
         m_customReclistFile = juce::File();
         updateReclistPanel();
     };
+    m_reclistClearButton->onStateChange = [this] { repaint(); };
     m_reclistCustomCard->addAndMakeVisible(m_reclistClearButton.get());
 
     // --- Tempo combo ---
@@ -145,19 +156,25 @@ void ProjectSetupScreen::buildUI()
 
     m_bgmCustomLabel.setJustificationType(juce::Justification::centredLeft);
     m_bgmCustomLabel.setFont(juce::Font(juce::FontOptions(Fonts::getSarasaSemiBold()).withHeight(14.0f)));
+    m_bgmCustomLabel.setColour(juce::Label::textColourId, juce::Colour(0xFF364379)); // onPrimaryContainer
+    m_bgmCustomLabel.setBorderSize(juce::BorderSize<int>(0));
     m_bgmCustomLabel.setInterceptsMouseClicks(false, false);
     m_bgmCustomCard->addAndMakeVisible(m_bgmCustomLabel);
 
-    auto closeIcon2 = Icons::load(Icons::closeSvg, juce::Colour(0xFF45464F));
     m_bgmClearButton = std::make_unique<juce::DrawableButton>("clearBGM",
                                                                juce::DrawableButton::ImageFitted);
-    if (closeIcon2)
-        m_bgmClearButton->setImages(closeIcon2.get());
+    {
+        auto normal  = Icons::load(Icons::closeSvg, juce::Colour(0xFF45464F).withAlpha(0.55f));
+        auto hover   = Icons::load(Icons::closeSvg, juce::Colour(0xFF45464F).withAlpha(0.80f));
+        auto pressed = Icons::load(Icons::closeSvg, juce::Colour(0xFF45464F));
+        m_bgmClearButton->setImages(normal.get(), hover.get(), pressed.get());
+    }
     m_bgmClearButton->onClick = [this] {
         m_usingCustomBGM = false;
         m_customBGMFile = juce::File();
         updateBGMPanel();
     };
+    m_bgmClearButton->onStateChange = [this] { repaint(); };
     m_bgmCustomCard->addAndMakeVisible(m_bgmClearButton.get());
 
     // --- OK button (we paint the circle ourselves; button handles hit-testing) ---
@@ -310,7 +327,7 @@ void ProjectSetupScreen::paint(juce::Graphics &g)
     drawBadgeTitle(p2x, "2", "Guide BGM");
 
     // --- Custom file cards ---
-    auto drawCustomCard = [&](juce::Component *card) {
+    auto drawCustomCard = [&](juce::Component *card, juce::Button *clearBtn) {
         if (!card || !card->isVisible())
             return;
         auto r = card->getBounds().toFloat();
@@ -321,14 +338,24 @@ void ProjectSetupScreen::paint(juce::Graphics &g)
         g.setColour(onPrimaryCont.withAlpha(0.6f));
         g.setFont(juce::Font(juce::FontOptions(Fonts::getSarasaSemiBold()).withHeight(10.0f)));
         g.drawText("CUSTOM FILE SELECTED",
-                   juce::Rectangle<int>(card->getX() + 12, card->getY() + 8,
-                                        card->getWidth() - 40, 12),
+                   juce::Rectangle<int>(card->getX() + 16, card->getY() + 10,
+                                        card->getWidth() - 56, 12),
                    juce::Justification::centredLeft);
+
+        // Close button state layer — circular bg on hover/press
+        if (clearBtn && (clearBtn->isOver() || clearBtn->isDown())) {
+            auto btnBounds = clearBtn->getBounds().toFloat().translated(
+                static_cast<float>(card->getX()), static_cast<float>(card->getY()));
+            // Expand to a 28dp circle centered on the 18dp icon
+            auto circle = btnBounds.withSizeKeepingCentre(28.0f, 28.0f);
+            g.setColour(onPrimaryCont.withAlpha(clearBtn->isDown() ? 0.10f : 0.08f));
+            g.fillEllipse(circle);
+        }
     };
     if (m_usingCustomReclist)
-        drawCustomCard(m_reclistCustomCard.get());
+        drawCustomCard(m_reclistCustomCard.get(), m_reclistClearButton.get());
     if (m_usingCustomBGM)
-        drawCustomCard(m_bgmCustomCard.get());
+        drawCustomCard(m_bgmCustomCard.get(), m_bgmClearButton.get());
 
     // --- OK button (MD3e Icon Button M: 56×56 filled circle) ---
     {
@@ -435,8 +462,8 @@ void ProjectSetupScreen::resized()
         const int cardH = 64;
         m_reclistCustomCard->setBounds(innerX1, panelInnerTop, innerW1, cardH);
         m_reclistCustomCard->setVisible(true);
-        m_reclistCustomLabel.setBounds(12, 24, innerW1 - 40, 20);
-        m_reclistClearButton->setBounds(innerW1 - 28, 10, 20, 20);
+        m_reclistCustomLabel.setBounds(16, 26, innerW1 - 56, 20);
+        m_reclistClearButton->setBounds(innerW1 - 34, 16, 18, 18);
     }
 
     // --- Middle panel (Guide BGM) ---
@@ -458,8 +485,8 @@ void ProjectSetupScreen::resized()
         const int cardH = 64;
         m_bgmCustomCard->setBounds(innerX2, panelInnerTop, innerW2, cardH);
         m_bgmCustomCard->setVisible(true);
-        m_bgmCustomLabel.setBounds(12, 24, innerW2 - 40, 20);
-        m_bgmClearButton->setBounds(innerW2 - 28, 10, 20, 20);
+        m_bgmCustomLabel.setBounds(16, 26, innerW2 - 56, 20);
+        m_bgmClearButton->setBounds(innerW2 - 34, 16, 18, 18);
     }
 
     // --- OK button (MD3e L: 96×96, bottom of 3rd column) ---

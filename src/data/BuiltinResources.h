@@ -15,7 +15,10 @@ struct ReclistInfo
 {
     int id;
     const char *displayName;   // e.g. "JP - 巽式日本語 VCV"
-    const char *attribution;   // e.g. "185 entries; 7-mora, 巽、Haru.jpg"
+    int entryCount;            // number of reclist entries
+    int moraCount;             // mora per line (e.g. 7)
+    const char *credits;       // author attribution, e.g. "巽、Haru.jpg"
+    bool hasComment;           // whether a romaji comment file is bundled
     const void *reclistData;
     size_t reclistSize;
     const void *commentData;   // may be nullptr

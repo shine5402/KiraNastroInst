@@ -11,62 +11,28 @@ namespace BuiltinResources
 
 const std::vector<ReclistInfo> &getReclists()
 {
+    // clang-format off
     static const std::vector<ReclistInfo> reclists = {
-        {
-            0,
-            u8"JP - 巽式日本語 VCV",
-            u8"185 entries; 7-mora, 巽、Haru.jpg (romaji comment)",
-            BinaryDataReclists::vcv_7mora_txt,
-            BinaryDataReclists::vcv_7mora_txtSize,
-            BinaryDataReclists::vcv_7mora_comment_txt,
-            BinaryDataReclists::vcv_7mora_comment_txtSize,
-        },
-        {
-            1,
-            u8"JP - 巽式日本語 VCV (New7mora)",
-            u8"195 entries; 7-mora, 巽、Haru.jpg (romaji comment)",
-            BinaryDataReclists::vcv_new7mora_txt,
-            BinaryDataReclists::vcv_new7mora_txtSize,
-            BinaryDataReclists::vcv_new7mora_comment_txt,
-            BinaryDataReclists::vcv_new7mora_comment_txtSize,
-        },
-        {
-            2,
-            u8"JP - 巽式日本語 CVVC",
-            u8"82 entries; 6-mora, 巽",
-            BinaryDataReclists::cvvc_6mora_txt,
-            BinaryDataReclists::cvvc_6mora_txtSize,
-            nullptr,
-            0,
-        },
-        {
-            3,
-            u8"JP - 巽式日本語 CVVC (lite)",
-            u8"46 entries; 6-mora, 巽",
-            BinaryDataReclists::cvvc_6mora_lite_txt,
-            BinaryDataReclists::cvvc_6mora_lite_txtSize,
-            nullptr,
-            0,
-        },
-        {
-            4,
-            u8"ZH - Hr.J 中文CVVC",
-            u8"291 entries; 7-mora, Haru.jpg、sder.colin",
-            BinaryDataReclists::zh_cvvc_7_txt,
-            BinaryDataReclists::zh_cvvc_7_txtSize,
-            nullptr,
-            0,
-        },
-        {
-            5,
-            u8"ZH - Hr.J 中文CVVC (lite)",
-            u8"216 entries; 7-mora, Haru.jpg、sder.colin",
-            BinaryDataReclists::zh_cvvc_7_lite_txt,
-            BinaryDataReclists::zh_cvvc_7_lite_txtSize,
-            nullptr,
-            0,
-        },
+        {0, u8"JP - 巽式日本語 VCV",          185, 7, u8"巽、Haru.jpg",        true,
+         BinaryDataReclists::vcv_7mora_txt,         BinaryDataReclists::vcv_7mora_txtSize,
+         BinaryDataReclists::vcv_7mora_comment_txt, BinaryDataReclists::vcv_7mora_comment_txtSize},
+        {1, u8"JP - 巽式日本語 VCV (New7mora)", 195, 7, u8"巽、Haru.jpg",       true,
+         BinaryDataReclists::vcv_new7mora_txt,         BinaryDataReclists::vcv_new7mora_txtSize,
+         BinaryDataReclists::vcv_new7mora_comment_txt, BinaryDataReclists::vcv_new7mora_comment_txtSize},
+        {2, u8"JP - 巽式日本語 CVVC",          82,  6, u8"巽",                 false,
+         BinaryDataReclists::cvvc_6mora_txt,        BinaryDataReclists::cvvc_6mora_txtSize,
+         nullptr, 0},
+        {3, u8"JP - 巽式日本語 CVVC (lite)",   46,  6, u8"巽",                 false,
+         BinaryDataReclists::cvvc_6mora_lite_txt,   BinaryDataReclists::cvvc_6mora_lite_txtSize,
+         nullptr, 0},
+        {4, u8"ZH - Hr.J 中文CVVC",           291, 7, u8"Haru.jpg、sder.colin", false,
+         BinaryDataReclists::zh_cvvc_7_txt,         BinaryDataReclists::zh_cvvc_7_txtSize,
+         nullptr, 0},
+        {5, u8"ZH - Hr.J 中文CVVC (lite)",    216, 7, u8"Haru.jpg、sder.colin", false,
+         BinaryDataReclists::zh_cvvc_7_lite_txt,    BinaryDataReclists::zh_cvvc_7_lite_txtSize,
+         nullptr, 0},
     };
+    // clang-format on
     return reclists;
 }
 
