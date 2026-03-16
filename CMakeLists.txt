@@ -112,7 +112,9 @@ juce_add_binary_data(KiraNastroReclists
         resources/builtin/reclists/vcv_new7mora.txt
         resources/builtin/reclists/vcv_new7mora_comment.txt
         resources/builtin/reclists/cvvc_6mora.txt
+        resources/builtin/reclists/cvvc_6mora_comment.txt
         resources/builtin/reclists/cvvc_6mora_lite.txt
+        resources/builtin/reclists/cvvc_6mora_lite_comment.txt
         resources/builtin/reclists/zh_cvvc_7.txt
         resources/builtin/reclists/zh_cvvc_7_lite.txt
 )
