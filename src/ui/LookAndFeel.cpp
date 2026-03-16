@@ -48,6 +48,20 @@ const juce::Colour KiraNastroLookAndFeel::md3TertiaryContainerDark{0xFF254A69};
 // MD3 Scrim token (same for both themes)
 const juce::Colour KiraNastroLookAndFeel::md3Scrim{0x52000000};
 
+// MD3 Primary Container tokens
+const juce::Colour KiraNastroLookAndFeel::md3PrimaryContainer{0xFFDDE1FF};
+const juce::Colour KiraNastroLookAndFeel::md3PrimaryContainerDark{0xFF364379};
+const juce::Colour KiraNastroLookAndFeel::md3OnPrimaryContainer{0xFF364379};
+const juce::Colour KiraNastroLookAndFeel::md3OnPrimaryContainerDark{0xFFDDE1FF};
+
+// MD3 Surface Container Lowest tokens
+const juce::Colour KiraNastroLookAndFeel::md3SurfaceContainerLowest{0xFFFFFFFF};
+const juce::Colour KiraNastroLookAndFeel::md3SurfaceContainerLowestDark{0xFF0E0F14};
+
+// MD3 OnPrimary tokens
+const juce::Colour KiraNastroLookAndFeel::md3OnPrimary{0xFFFFFFFF};
+const juce::Colour KiraNastroLookAndFeel::md3OnPrimaryDark{0xFF1F2D61};
+
 KiraNastroLookAndFeel::KiraNastroLookAndFeel()
 {
     // Apply MD3 palette to standard JUCE colour IDs
@@ -153,6 +167,22 @@ juce::Colour KiraNastroLookAndFeel::scrim() const
 {
     return md3Scrim;
 }
+juce::Colour KiraNastroLookAndFeel::surfaceContainerLowest() const
+{
+    return m_isDark ? md3SurfaceContainerLowestDark : md3SurfaceContainerLowest;
+}
+juce::Colour KiraNastroLookAndFeel::primaryContainer() const
+{
+    return m_isDark ? md3PrimaryContainerDark : md3PrimaryContainer;
+}
+juce::Colour KiraNastroLookAndFeel::onPrimaryContainer() const
+{
+    return m_isDark ? md3OnPrimaryContainerDark : md3OnPrimaryContainer;
+}
+juce::Colour KiraNastroLookAndFeel::onPrimary() const
+{
+    return m_isDark ? md3OnPrimaryDark : md3OnPrimary;
+}
 
 void KiraNastroLookAndFeel::drawButtonBackground(juce::Graphics &g, juce::Button &button,
                                                  const juce::Colour &backgroundColour,
@@ -223,78 +253,99 @@ void KiraNastroLookAndFeel::drawLabel(juce::Graphics &g, juce::Label &label)
 void KiraNastroLookAndFeel::drawPopupMenuBackground(juce::Graphics &g, int width, int height)
 {
     const juce::Rectangle<float> bounds(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
-    g.setColour(surfaceContainerHighest());
+    g.setColour(m_comboPopupActive ? surfaceContainerLowest() : surfaceContainerHighest());
     g.fillRoundedRectangle(bounds, 16.0f);
     // No outline — MD3 menus have no border
 }
 
 void KiraNastroLookAndFeel::drawPopupMenuItem(juce::Graphics &g, const juce::Rectangle<int> &area, bool isSeparator,
-                                              bool isActive, bool isHighlighted, bool /*isTicked*/, bool /*hasSubMenu*/,
+                                              bool isActive, bool isHighlighted, bool isTicked, bool /*hasSubMenu*/,
                                               const juce::String &text, const juce::String & /*shortcutKeyText*/,
                                               const juce::Drawable * /*icon*/, const juce::Colour * /*textColour*/,
                                               bool isFirstItem, bool isLastItem)
 {
     if (isSeparator) {
-        // MD3 "Vertical menu with divider" — 1px line with 8dp padding on each side
         g.setColour(outlineVariant());
-        // Draw 1px line centered in the area, with horizontal inset of 12px (border size)
         const int lineY = area.getCentreY();
         g.fillRect(area.getX() + 12, lineY, area.getWidth() - 24, 1);
         return;
     }
 
-    if (isHighlighted && isActive) {
-        // MD3 hover state: rounded rectangle with 8% opacity
-        // 2px margin from menu edge
-        auto highlightBounds = area.toFloat().reduced(2.0f, 0.0f);
-        g.setColour(onSurface().withAlpha(0.08f));
-
-        // Determine corner radius based on first/last item
-        // First item: top corners 16px to match container, bottom corners 4px
-        // Last item: top corners 4px, bottom corners 16px to match container
-        // Middle items: all corners 4px
-        float topLeftRadius = isFirstItem ? 16.0f : 4.0f;
-        float topRightRadius = isFirstItem ? 16.0f : 4.0f;
-        float bottomLeftRadius = isLastItem ? 16.0f : 4.0f;
-        float bottomRightRadius = isLastItem ? 16.0f : 4.0f;
-
-        // Draw rounded rectangle with different corner radii using path
+    // Helper: draw rounded rect with per-corner radii
+    auto drawHighlightPath = [&](juce::Rectangle<float> hb, float tlr, float trr, float brr, float blr) {
         juce::Path path;
-        const float x = highlightBounds.getX();
-        const float y = highlightBounds.getY();
-        const float w = highlightBounds.getWidth();
-        const float h = highlightBounds.getHeight();
-
-        // Start from top-left, moving clockwise
-        path.startNewSubPath(x + topLeftRadius, y);
-        // Top edge
-        path.lineTo(x + w - topRightRadius, y);
-        // Top-right corner
-        path.quadraticTo(x + w, y, x + w, y + topRightRadius);
-        // Right edge
-        path.lineTo(x + w, y + h - bottomRightRadius);
-        // Bottom-right corner
-        path.quadraticTo(x + w, y + h, x + w - bottomRightRadius, y + h);
-        // Bottom edge
-        path.lineTo(x + bottomLeftRadius, y + h);
-        // Bottom-left corner
-        path.quadraticTo(x, y + h, x, y + h - bottomLeftRadius);
-        // Left edge
-        path.lineTo(x, y + topLeftRadius);
-        // Top-left corner
-        path.quadraticTo(x, y, x + topLeftRadius, y);
+        const float x = hb.getX(), y = hb.getY(), w = hb.getWidth(), h = hb.getHeight();
+        path.startNewSubPath(x + tlr, y);
+        path.lineTo(x + w - trr, y);
+        path.quadraticTo(x + w, y, x + w, y + trr);
+        path.lineTo(x + w, y + h - brr);
+        path.quadraticTo(x + w, y + h, x + w - brr, y + h);
+        path.lineTo(x + blr, y + h);
+        path.quadraticTo(x, y + h, x, y + h - blr);
+        path.lineTo(x, y + tlr);
+        path.quadraticTo(x, y, x + tlr, y);
         path.closeSubPath();
-
         g.fillPath(path);
+    };
+
+    auto highlightBounds = area.toFloat().reduced(2.0f, 0.0f);
+    float topR = isFirstItem ? 16.0f : 4.0f;
+    float botR = isLastItem ? 16.0f : 4.0f;
+
+    // Selected (ticked) background — primaryContainer, 1px shrink top/bottom for gap
+    // but NOT on the top of first item or bottom of last item
+    if (isTicked) {
+        auto selectedBounds = highlightBounds;
+        if (!isFirstItem) selectedBounds.removeFromTop(1.0f);
+        if (!isLastItem)  selectedBounds.removeFromBottom(1.0f);
+        g.setColour(primaryContainer());
+        drawHighlightPath(selectedBounds, topR, topR, botR, botR);
     }
 
-    const juce::Colour textCol = isActive ? onSurface() : onSurface().withAlpha(0.38f);
-    g.setColour(textCol);
-    // MD3 labelLarge: 14sp, weight 500 (Medium) → SemiBold is closest Sarasa weight
-    g.setFont(juce::Font(juce::FontOptions(Fonts::getSarasaSemiBold()).withHeight(14.0f)));
-    // Text has 12px horizontal padding (more than hover background)
-    auto textArea = area.withLeft(area.getX() + 12).withRight(area.getRight() - 12);
-    g.drawFittedText(text, textArea, juce::Justification::centredLeft, 1);
+    // Hover overlay — same shrink logic
+    if (isHighlighted && isActive) {
+        auto hoverBounds = highlightBounds;
+        if (!isFirstItem) hoverBounds.removeFromTop(1.0f);
+        if (!isLastItem)  hoverBounds.removeFromBottom(1.0f);
+        g.setColour(onSurface().withAlpha(0.08f));
+        drawHighlightPath(hoverBounds, topR, topR, botR, botR);
+    }
+
+    // Detect two-line item: text contains \n
+    const bool twoLine = text.contains("\n");
+    const auto primaryText = twoLine ? text.upToFirstOccurrenceOf("\n", false, false) : text;
+    const auto supportText = twoLine ? text.fromFirstOccurrenceOf("\n", false, false) : juce::String();
+
+    // Text colors
+    const juce::Colour primaryCol = !isActive ? onSurface().withAlpha(0.38f)
+                                   : isTicked ? onPrimaryContainer()
+                                              : onSurface();
+
+    auto textBounds = area.withLeft(area.getX() + 12).withRight(area.getRight() - 12);
+
+    if (twoLine) {
+        // Primary text — 16pt SemiBold
+        g.setColour(primaryCol);
+        g.setFont(juce::Font(juce::FontOptions(Fonts::getSarasaSemiBold()).withHeight(16.0f)));
+        g.drawFittedText(primaryText,
+                         textBounds.withHeight(22).withY(area.getY() + 10),
+                         juce::Justification::centredLeft, 1);
+
+        // Supporting text — 12pt, slightly muted
+        const juce::Colour supportCol = !isActive ? onSurface().withAlpha(0.38f)
+                                       : isTicked ? onPrimaryContainer().withAlpha(0.7f)
+                                                  : onSurfaceVariant();
+        g.setColour(supportCol);
+        g.setFont(juce::Font(juce::FontOptions(Fonts::getSarasaRegular()).withHeight(12.0f)));
+        g.drawFittedText(supportText,
+                         textBounds.withHeight(18).withY(area.getY() + 34),
+                         juce::Justification::centredLeft, 1);
+    } else {
+        // Single-line: MD3 labelLarge 14sp SemiBold
+        g.setColour(primaryCol);
+        g.setFont(juce::Font(juce::FontOptions(Fonts::getSarasaSemiBold()).withHeight(14.0f)));
+        g.drawFittedText(primaryText, textBounds, juce::Justification::centredLeft, 1);
+    }
 }
 
 void KiraNastroLookAndFeel::getIdealPopupMenuItemSize(const juce::String &text, bool isSeparator,
@@ -308,14 +359,19 @@ void KiraNastroLookAndFeel::getIdealPopupMenuItemSize(const juce::String &text, 
     }
     else
     {
-        // MD3 labelLarge: 14sp, weight 500 (Medium)
-        auto font = juce::Font(juce::FontOptions(Fonts::getSarasaSemiBold()).withHeight(14.0f));
-        idealHeight = 40; // Compact menu item height
-        
-        // M3: width = text width + horizontal padding (12px left + 12px right)
-        idealWidth = juce::GlyphArrangement::getStringWidthInt(font, text) + 24;
-        
-        // M3: minimum 112dp, no strict maximum on desktop (let content determine width)
+        const bool twoLine = text.contains("\n");
+        const auto primaryText = twoLine ? text.upToFirstOccurrenceOf("\n", false, false) : text;
+
+        if (twoLine) {
+            auto font = juce::Font(juce::FontOptions(Fonts::getSarasaSemiBold()).withHeight(16.0f));
+            idealHeight = 64; // Two-line item height
+            idealWidth = juce::GlyphArrangement::getStringWidthInt(font, primaryText) + 24;
+        } else {
+            auto font = juce::Font(juce::FontOptions(Fonts::getSarasaSemiBold()).withHeight(14.0f));
+            idealHeight = 40; // Compact single-line item height
+            idealWidth = juce::GlyphArrangement::getStringWidthInt(font, text) + 24;
+        }
+
         idealWidth = juce::jmax(112, idealWidth);
     }
 }

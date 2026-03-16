@@ -4,6 +4,7 @@
 #include "KiraNastroProcessor.h"
 
 #include "KiraNastroEditor.h"
+#include "data/BuiltinResources.h"
 
 KiraNastroProcessor::KiraNastroProcessor()
     : AudioProcessor(BusesProperties().withOutput("Output", juce::AudioChannelSet::stereo(), true))
@@ -212,8 +213,14 @@ juce::AudioProcessorEditor *KiraNastroProcessor::createEditor()
 void KiraNastroProcessor::getStateInformation(juce::MemoryBlock &destData)
 {
     auto xml = std::make_unique<juce::XmlElement>("KiraNastroState");
-    xml->setAttribute("version", 2);
+    xml->setAttribute("version", 3);
+    xml->setAttribute("hasCompletedSetup", m_hasCompletedSetup);
+    xml->setAttribute("reclistSource", static_cast<int>(m_reclistSource));
+    xml->setAttribute("builtinReclistId", m_builtinReclistId);
     xml->setAttribute("reclistPath", m_reclistFilePath);
+    xml->setAttribute("bgmSource", static_cast<int>(m_bgmSource));
+    xml->setAttribute("builtinBGMTempo", m_builtinBGMTempo);
+    xml->setAttribute("builtinBGMKey", m_builtinBGMKey);
     xml->setAttribute("bgmAudioPath", m_bgmAudioFilePath);
     xml->setAttribute("darkMode", m_darkMode);
     copyXmlToBinary(*xml, destData);
@@ -226,22 +233,63 @@ void KiraNastroProcessor::setStateInformation(const void *data, int sizeInBytes)
         return;
 
     m_darkMode = xml->getBoolAttribute("darkMode", false);
+    const int version = xml->getIntAttribute("version", 1);
 
-    const auto reclistPath = xml->getStringAttribute("reclistPath");
-    if (reclistPath.isNotEmpty()) {
-        juce::File f(reclistPath);
-        if (f.existsAsFile())
-            loadReclist(f);
-    }
+    if (version >= 3) {
+        m_hasCompletedSetup = xml->getBoolAttribute("hasCompletedSetup", false);
+        m_reclistSource = static_cast<ResourceSource>(xml->getIntAttribute("reclistSource", 0));
+        m_builtinReclistId = xml->getIntAttribute("builtinReclistId", 0);
+        m_bgmSource = static_cast<ResourceSource>(xml->getIntAttribute("bgmSource", 0));
+        m_builtinBGMTempo = xml->getIntAttribute("builtinBGMTempo", 120);
+        m_builtinBGMKey = xml->getStringAttribute("builtinBGMKey", "G");
 
-    // Read "bgmAudioPath" (v2+) with fallback to "bgmWavPath" (v1 legacy)
-    auto bgmAudioPath = xml->getStringAttribute("bgmAudioPath");
-    if (bgmAudioPath.isEmpty())
-        bgmAudioPath = xml->getStringAttribute("bgmWavPath");
-    if (bgmAudioPath.isNotEmpty()) {
-        juce::File f(bgmAudioPath);
-        if (f.existsAsFile())
-            loadGuideBGM(f);
+        if (m_hasCompletedSetup) {
+            if (m_reclistSource == ResourceSource::Builtin) {
+                loadBuiltinReclist(m_builtinReclistId);
+            } else {
+                const auto reclistPath = xml->getStringAttribute("reclistPath");
+                if (reclistPath.isNotEmpty()) {
+                    juce::File f(reclistPath);
+                    if (f.existsAsFile())
+                        loadReclist(f);
+                }
+            }
+
+            if (m_bgmSource == ResourceSource::Builtin) {
+                loadBuiltinBGM(m_builtinBGMTempo, m_builtinBGMKey);
+            } else {
+                auto bgmAudioPath = xml->getStringAttribute("bgmAudioPath");
+                if (bgmAudioPath.isNotEmpty()) {
+                    juce::File f(bgmAudioPath);
+                    if (f.existsAsFile())
+                        loadGuideBGM(f);
+                }
+            }
+        }
+    } else {
+        // Migration from v1/v2: load custom file paths if present
+        // hasCompletedSetup stays false → user sees setup screen on next open
+        const auto reclistPath = xml->getStringAttribute("reclistPath");
+        if (reclistPath.isNotEmpty()) {
+            juce::File f(reclistPath);
+            if (f.existsAsFile()) {
+                loadReclist(f);
+                m_reclistSource = ResourceSource::Custom;
+                m_reclistFilePath = reclistPath;
+            }
+        }
+
+        auto bgmAudioPath = xml->getStringAttribute("bgmAudioPath");
+        if (bgmAudioPath.isEmpty())
+            bgmAudioPath = xml->getStringAttribute("bgmWavPath");
+        if (bgmAudioPath.isNotEmpty()) {
+            juce::File f(bgmAudioPath);
+            if (f.existsAsFile()) {
+                loadGuideBGM(f);
+                m_bgmSource = ResourceSource::Custom;
+                m_bgmAudioFilePath = bgmAudioPath;
+            }
+        }
     }
 
     // Clear timing state — we have no reliable position after a state restore.
@@ -263,6 +311,7 @@ bool KiraNastroProcessor::loadReclist(const juce::File &reclistFile)
 
     if (result.has_value()) {
         m_reclistFilePath = reclistFile.getFullPathName();
+        m_reclistSource = ResourceSource::Custom;
         m_currentEntryIndex.store(0);
         m_totalEntries.store(static_cast<int>(result->entries.size()));
         return true;
@@ -290,6 +339,7 @@ KiraNastroProcessor::BGMLoadResult KiraNastroProcessor::loadGuideBGM(const juce:
         return BGMLoadResult::AudioLoadFailed;
     }
     m_bgmAudioFilePath = audioFile.getFullPathName();
+    m_bgmSource = ResourceSource::Custom;
 
     {
         juce::ScopedLock sl(m_dataLock);
@@ -316,6 +366,89 @@ KiraNastroProcessor::BGMLoadResult KiraNastroProcessor::loadGuideBGM(const juce:
     }
 
     // Seek to block start
+    const double fileSR = static_cast<double>(m_bgmPlayer.getSampleRate());
+    const int64_t startSamples = static_cast<int64_t>((m_bgmBlockStartMs / 1000.0) * fileSR);
+    m_bgmPlayer.seekToSample(startSamples);
+
+    return BGMLoadResult::Success;
+}
+
+bool KiraNastroProcessor::loadBuiltinReclist(int reclistId)
+{
+    const auto &reclists = BuiltinResources::getReclists();
+    for (const auto &info : reclists) {
+        if (info.id != reclistId)
+            continue;
+
+        auto result = ReclistParser::loadFromMemory(
+            info.reclistData, info.reclistSize,
+            juce::String::fromUTF8(info.displayName),
+            info.commentData, info.commentSize);
+
+        juce::ScopedLock sl(m_dataLock);
+        m_reclistData = result;
+
+        if (result.has_value()) {
+            m_reclistFilePath = {};
+            m_reclistSource = ResourceSource::Builtin;
+            m_builtinReclistId = reclistId;
+            m_currentEntryIndex.store(0);
+            m_totalEntries.store(static_cast<int>(result->entries.size()));
+            return true;
+        }
+
+        m_totalEntries.store(0);
+        return false;
+    }
+    return false;
+}
+
+KiraNastroProcessor::BGMLoadResult KiraNastroProcessor::loadBuiltinBGM(int tempo, const juce::String &key)
+{
+    const auto *entry = BuiltinResources::findBGM(tempo, key);
+    if (entry == nullptr)
+        return BGMLoadResult::TimingFileMissing;
+
+    auto timingResult = GuideBGMParser::loadFromMemory(
+        entry->timingData, entry->timingSize,
+        juce::String("Jazz-") + juce::String(tempo) + "-" + key);
+
+    if (!timingResult.has_value())
+        return BGMLoadResult::TimingFileInvalid;
+
+    bool audioOk = m_bgmPlayer.loadFromMemory(entry->audioData, entry->audioSize);
+    if (!audioOk)
+        return BGMLoadResult::AudioLoadFailed;
+
+    m_bgmAudioFilePath = {};
+    m_bgmSource = ResourceSource::Builtin;
+    m_builtinBGMTempo = tempo;
+    m_builtinBGMKey = key;
+
+    {
+        juce::ScopedLock sl(m_dataLock);
+        m_bgmData = timingResult;
+    }
+
+    const auto &t = timingResult->timing;
+    m_bgmBlockStartMs           = t.bgmPlaybackStartMs;
+    m_bgmBlockEndMs             = t.bgmLoopMs;
+    m_recordingStartOffsetMs    = t.recordingStartMs - t.bgmPlaybackStartMs;
+    m_recordingWindowDurationMs = t.recordingEndMs   - t.recordingStartMs;
+
+    const double blockDurationMs = t.bgmLoopMs - t.bgmPlaybackStartMs;
+    if (blockDurationMs > 0.0) {
+        m_utteranceStartFraction.store(
+            static_cast<float>((t.utteranceStartMs - t.bgmPlaybackStartMs) / blockDurationMs),
+            std::memory_order_relaxed);
+        m_utteranceEndFraction.store(
+            static_cast<float>((t.utteranceEndMs - t.bgmPlaybackStartMs) / blockDurationMs),
+            std::memory_order_relaxed);
+    } else {
+        m_utteranceStartFraction.store(0.333f, std::memory_order_relaxed);
+        m_utteranceEndFraction.store(0.667f, std::memory_order_relaxed);
+    }
+
     const double fileSR = static_cast<double>(m_bgmPlayer.getSampleRate());
     const int64_t startSamples = static_cast<int64_t>((m_bgmBlockStartMs / 1000.0) * fileSR);
     m_bgmPlayer.seekToSample(startSamples);

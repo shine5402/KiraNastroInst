@@ -51,12 +51,30 @@ public:
     // MD3 Scrim token (same for both themes)
     static const juce::Colour md3Scrim; // #000000 @ 32% opacity
 
+    // MD3 Primary Container tokens
+    static const juce::Colour md3PrimaryContainer;       // #DDE1FF
+    static const juce::Colour md3PrimaryContainerDark;   // #364379
+    static const juce::Colour md3OnPrimaryContainer;     // #364379
+    static const juce::Colour md3OnPrimaryContainerDark; // #DDE1FF
+
+    // MD3 Surface Container Lowest tokens
+    static const juce::Colour md3SurfaceContainerLowest;     // #FFFFFF
+    static const juce::Colour md3SurfaceContainerLowestDark; // #0E0F14
+
+    // MD3 OnPrimary tokens
+    static const juce::Colour md3OnPrimary;     // #FFFFFF
+    static const juce::Colour md3OnPrimaryDark; // #1F2D61
+
     KiraNastroLookAndFeel();
     ~KiraNastroLookAndFeel() override = default;
 
     // Dark mode API
     void setDarkMode(bool dark);
     bool getDarkMode() const { return m_isDark; }
+
+    // Popup menu style hint — combo box dropdowns use a lighter background
+    void setComboPopupActive(bool active) { m_comboPopupActive = active; }
+    bool isComboPopupActive() const { return m_comboPopupActive; }
 
     // Instance-level colour accessors (respects isDark state)
     juce::Colour background() const;
@@ -71,10 +89,14 @@ public:
     juce::Colour surfaceContainer() const;
     juce::Colour surfaceContainerHigh() const;
     juce::Colour surfaceContainerHighest() const;
+    juce::Colour surfaceContainerLowest() const;
     juce::Colour onSurface() const;
     juce::Colour outlineVariant() const;
     juce::Colour tertiaryContainer() const;
     juce::Colour scrim() const;
+    juce::Colour primaryContainer() const;
+    juce::Colour onPrimaryContainer() const;
+    juce::Colour onPrimary() const;
 
     // MD3 filled button / text button (auto-detects AlertWindow context)
     void drawButtonBackground(juce::Graphics &g, juce::Button &button, const juce::Colour &backgroundColour,
@@ -104,6 +126,7 @@ public:
 
 private:
     bool m_isDark = false;
+    bool m_comboPopupActive = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KiraNastroLookAndFeel)
 };

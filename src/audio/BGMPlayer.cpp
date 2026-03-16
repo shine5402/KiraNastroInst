@@ -11,12 +11,14 @@ BGMPlayer::BGMPlayer()
     m_formatManager.registerFormat(new OpusAudioFormat(), false);
 }
 
-bool BGMPlayer::loadFile(const juce::File &audioFile)
+static bool loadReaderIntoPlayer(juce::AudioFormatReader *rawReader,
+                                  juce::AudioBuffer<float> &audioBuffer,
+                                  int &loadedSampleRate,
+                                  double hostSampleRate,
+                                  double &playbackRatio,
+                                  bool &loaded)
 {
-    unload();
-
-    std::unique_ptr<juce::AudioFormatReader> reader(m_formatManager.createReaderFor(audioFile));
-
+    std::unique_ptr<juce::AudioFormatReader> reader(rawReader);
     if (reader == nullptr)
         return false;
 
@@ -28,17 +30,33 @@ bool BGMPlayer::loadFile(const juce::File &audioFile)
     auto numChannels = static_cast<int>(reader->numChannels);
     auto numSamples = static_cast<int>(reader->lengthInSamples);
 
-    m_audioBuffer.setSize(numChannels, numSamples);
-    reader->read(&m_audioBuffer, 0, numSamples, 0, true, true);
+    audioBuffer.setSize(numChannels, numSamples);
+    reader->read(&audioBuffer, 0, numSamples, 0, true, true);
 
-    m_loadedSampleRate = static_cast<int>(reader->sampleRate);
-    m_loaded = true;
+    loadedSampleRate = static_cast<int>(reader->sampleRate);
+    loaded = true;
 
-    // Recompute playback ratio in case prepareToPlay was called before loading
-    if (m_hostSampleRate > 0.0 && m_loadedSampleRate > 0)
-        m_playbackRatio = static_cast<double>(m_loadedSampleRate) / m_hostSampleRate;
+    if (hostSampleRate > 0.0 && loadedSampleRate > 0)
+        playbackRatio = static_cast<double>(loadedSampleRate) / hostSampleRate;
 
     return true;
+}
+
+bool BGMPlayer::loadFile(const juce::File &audioFile)
+{
+    unload();
+    return loadReaderIntoPlayer(m_formatManager.createReaderFor(audioFile),
+                                m_audioBuffer, m_loadedSampleRate,
+                                m_hostSampleRate, m_playbackRatio, m_loaded);
+}
+
+bool BGMPlayer::loadFromMemory(const void *data, size_t dataSize)
+{
+    unload();
+    auto stream = std::make_unique<juce::MemoryInputStream>(data, dataSize, false);
+    return loadReaderIntoPlayer(m_formatManager.createReaderFor(std::move(stream)),
+                                m_audioBuffer, m_loadedSampleRate,
+                                m_hostSampleRate, m_playbackRatio, m_loaded);
 }
 
 juce::String BGMPlayer::getWildcardForAllFormats() const

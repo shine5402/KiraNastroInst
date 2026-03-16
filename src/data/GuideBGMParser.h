@@ -34,5 +34,9 @@ public:
     // Direct parse from timing file
     static std::optional<GuideBGMData> loadFromTimingFile(const juce::File &timingFile);
 
+    // Load from in-memory timing data
+    static std::optional<GuideBGMData> loadFromMemory(const void *timingData, size_t timingSize,
+                                                      const juce::String &name);
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GuideBGMParser)
 };

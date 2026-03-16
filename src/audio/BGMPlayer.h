@@ -15,6 +15,7 @@ public:
     ~BGMPlayer() = default;
 
     bool loadFile(const juce::File &audioFile);
+    bool loadFromMemory(const void *data, size_t dataSize);
     juce::String getWildcardForAllFormats() const;
     void unload();
 

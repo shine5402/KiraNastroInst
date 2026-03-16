@@ -64,6 +64,10 @@ public:
     };
     BGMLoadResult loadGuideBGM(const juce::File &audioFile);
 
+    // Built-in resource loading
+    bool loadBuiltinReclist(int reclistId);
+    BGMLoadResult loadBuiltinBGM(int tempo, const juce::String &key);
+
     juce::String getSupportedAudioExtensions() const;
 
     // Thread-safe accessors — return copies under lock
@@ -94,6 +98,17 @@ public:
     // Dark mode preference (persisted in state)
     bool getDarkMode() const { return m_darkMode; }
     void setDarkMode(bool dark) { m_darkMode = dark; }
+
+    // Setup state
+    bool hasCompletedSetup() const { return m_hasCompletedSetup; }
+    void setHasCompletedSetup(bool v) { m_hasCompletedSetup = v; }
+
+    enum class ResourceSource { Builtin, Custom };
+    ResourceSource getReclistSource() const { return m_reclistSource; }
+    int getBuiltinReclistId() const { return m_builtinReclistId; }
+    ResourceSource getBGMSource() const { return m_bgmSource; }
+    int getBuiltinBGMTempo() const { return m_builtinBGMTempo; }
+    juce::String getBuiltinBGMKey() const { return m_builtinBGMKey; }
 
     //==============================================================================
     // Public member variables
@@ -131,6 +146,12 @@ private:
     juce::String m_reclistFilePath;
     juce::String m_bgmAudioFilePath;
     bool m_darkMode = false;
+    bool m_hasCompletedSetup = false;
+    ResourceSource m_reclistSource = ResourceSource::Builtin;
+    int m_builtinReclistId = 0;
+    ResourceSource m_bgmSource = ResourceSource::Builtin;
+    int m_builtinBGMTempo = 120;
+    juce::String m_builtinBGMKey = "G";
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KiraNastroProcessor)
 };

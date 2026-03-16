@@ -102,6 +102,100 @@ juce_add_binary_data(KiraNastroImages
         resources/branding/icon.svg
 )
 
+# Embed built-in reclists as binary data
+juce_add_binary_data(KiraNastroReclists
+    HEADER_NAME "BinaryDataReclists.h"
+    NAMESPACE   "BinaryDataReclists"
+    SOURCES
+        resources/builtin/reclists/vcv_7mora.txt
+        resources/builtin/reclists/vcv_7mora_comment.txt
+        resources/builtin/reclists/vcv_new7mora.txt
+        resources/builtin/reclists/vcv_new7mora_comment.txt
+        resources/builtin/reclists/cvvc_6mora.txt
+        resources/builtin/reclists/cvvc_6mora_lite.txt
+        resources/builtin/reclists/zh_cvvc_7.txt
+        resources/builtin/reclists/zh_cvvc_7_lite.txt
+)
+
+# Embed built-in BGM files (Opus audio + timing txt) as binary data
+juce_add_binary_data(KiraNastroBGM
+    HEADER_NAME "BinaryDataBGM.h"
+    NAMESPACE   "BinaryDataBGM"
+    SOURCES
+        resources/builtin/bgm/Jazz-100-A.opus
+        resources/builtin/bgm/Jazz-100-A.txt
+        resources/builtin/bgm/Jazz-100-As.opus
+        resources/builtin/bgm/Jazz-100-As.txt
+        resources/builtin/bgm/Jazz-100-B.opus
+        resources/builtin/bgm/Jazz-100-B.txt
+        resources/builtin/bgm/Jazz-100-C.opus
+        resources/builtin/bgm/Jazz-100-C.txt
+        resources/builtin/bgm/Jazz-100-Cs.opus
+        resources/builtin/bgm/Jazz-100-Cs.txt
+        resources/builtin/bgm/Jazz-100-D.opus
+        resources/builtin/bgm/Jazz-100-D.txt
+        resources/builtin/bgm/Jazz-100-Ds.opus
+        resources/builtin/bgm/Jazz-100-Ds.txt
+        resources/builtin/bgm/Jazz-100-E.opus
+        resources/builtin/bgm/Jazz-100-E.txt
+        resources/builtin/bgm/Jazz-100-F.opus
+        resources/builtin/bgm/Jazz-100-F.txt
+        resources/builtin/bgm/Jazz-100-Fs.opus
+        resources/builtin/bgm/Jazz-100-Fs.txt
+        resources/builtin/bgm/Jazz-100-G.opus
+        resources/builtin/bgm/Jazz-100-G.txt
+        resources/builtin/bgm/Jazz-100-Gs.opus
+        resources/builtin/bgm/Jazz-100-Gs.txt
+        resources/builtin/bgm/Jazz-120-A.opus
+        resources/builtin/bgm/Jazz-120-A.txt
+        resources/builtin/bgm/Jazz-120-As.opus
+        resources/builtin/bgm/Jazz-120-As.txt
+        resources/builtin/bgm/Jazz-120-B.opus
+        resources/builtin/bgm/Jazz-120-B.txt
+        resources/builtin/bgm/Jazz-120-C.opus
+        resources/builtin/bgm/Jazz-120-C.txt
+        resources/builtin/bgm/Jazz-120-Cs.opus
+        resources/builtin/bgm/Jazz-120-Cs.txt
+        resources/builtin/bgm/Jazz-120-D.opus
+        resources/builtin/bgm/Jazz-120-D.txt
+        resources/builtin/bgm/Jazz-120-Ds.opus
+        resources/builtin/bgm/Jazz-120-Ds.txt
+        resources/builtin/bgm/Jazz-120-E.opus
+        resources/builtin/bgm/Jazz-120-E.txt
+        resources/builtin/bgm/Jazz-120-F.opus
+        resources/builtin/bgm/Jazz-120-F.txt
+        resources/builtin/bgm/Jazz-120-Fs.opus
+        resources/builtin/bgm/Jazz-120-Fs.txt
+        resources/builtin/bgm/Jazz-120-G.opus
+        resources/builtin/bgm/Jazz-120-G.txt
+        resources/builtin/bgm/Jazz-120-Gs.opus
+        resources/builtin/bgm/Jazz-120-Gs.txt
+        resources/builtin/bgm/Jazz-140-A.opus
+        resources/builtin/bgm/Jazz-140-A.txt
+        resources/builtin/bgm/Jazz-140-As.opus
+        resources/builtin/bgm/Jazz-140-As.txt
+        resources/builtin/bgm/Jazz-140-B.opus
+        resources/builtin/bgm/Jazz-140-B.txt
+        resources/builtin/bgm/Jazz-140-C.opus
+        resources/builtin/bgm/Jazz-140-C.txt
+        resources/builtin/bgm/Jazz-140-Cs.opus
+        resources/builtin/bgm/Jazz-140-Cs.txt
+        resources/builtin/bgm/Jazz-140-D.opus
+        resources/builtin/bgm/Jazz-140-D.txt
+        resources/builtin/bgm/Jazz-140-Ds.opus
+        resources/builtin/bgm/Jazz-140-Ds.txt
+        resources/builtin/bgm/Jazz-140-E.opus
+        resources/builtin/bgm/Jazz-140-E.txt
+        resources/builtin/bgm/Jazz-140-F.opus
+        resources/builtin/bgm/Jazz-140-F.txt
+        resources/builtin/bgm/Jazz-140-Fs.opus
+        resources/builtin/bgm/Jazz-140-Fs.txt
+        resources/builtin/bgm/Jazz-140-G.opus
+        resources/builtin/bgm/Jazz-140-G.txt
+        resources/builtin/bgm/Jazz-140-Gs.opus
+        resources/builtin/bgm/Jazz-140-Gs.txt
+)
+
 # Plugin target
 juce_add_plugin(KiraNastro
     VERSION                     0.1.0
@@ -140,8 +234,14 @@ target_sources(KiraNastro
         src/data/GuideBGMParser.cpp
         src/data/LabelExporter.h
         src/data/LabelExporter.cpp
+        src/data/BuiltinResources.h
+        src/data/BuiltinResources.cpp
         src/ui/LookAndFeel.h
         src/ui/LookAndFeel.cpp
+        src/ui/Md3ExpressiveComboBox.h
+        src/ui/Md3ExpressiveComboBox.cpp
+        src/ui/ProjectSetupScreen.h
+        src/ui/ProjectSetupScreen.cpp
         src/ui/TimingIndicator.h
         src/ui/TimingIndicator.cpp
         src/ui/PlaybackControls.h
@@ -171,6 +271,8 @@ target_link_libraries(KiraNastro
     PRIVATE
         KiraNastroFonts
         KiraNastroImages
+        KiraNastroReclists
+        KiraNastroBGM
         juce::juce_audio_utils
         juce::juce_audio_formats
         juce::juce_gui_extra

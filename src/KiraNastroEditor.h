@@ -8,6 +8,7 @@
 #include "KiraNastroProcessor.h"
 #include "ui/LookAndFeel.h"
 #include "ui/PlaybackControls.h"
+#include "ui/ProjectSetupScreen.h"
 #include "ui/TimingIndicator.h"
 
 class KiraNastroEditor : public juce::AudioProcessorEditor, public juce::Timer, public juce::Slider::Listener
@@ -37,9 +38,7 @@ private:
     float m_cachedUtteranceStartFraction = -1.0f; // -1 forces initial push
     float m_cachedUtteranceEndFraction   = -1.0f;
 
-    // File choosers
-    std::unique_ptr<juce::FileChooser> m_reclistChooser;
-    std::unique_ptr<juce::FileChooser> m_bgmChooser;
+    // File chooser for export
     std::unique_ptr<juce::FileChooser> m_descChooser;
 
     // Hamburger menu button (always present)
@@ -55,6 +54,10 @@ private:
     // Timing pie chart (always present)
     std::unique_ptr<TimingIndicator> m_timingIndicator;
 
+    // Setup screen (shown on first launch or from menu)
+    std::unique_ptr<ProjectSetupScreen> m_setupScreen;
+    bool m_showingSetup = false;
+
     // Standalone-only debug controls (null in plugin mode; created at runtime
     // based on wrapperType — compile-time guards don't work in JUCE shared code)
     std::unique_ptr<PlaybackControls> m_playbackControls;
@@ -62,6 +65,9 @@ private:
 
     void showMenu();
     void reloadChipIcons();
+    void showSetupScreen();
+    void hideSetupScreen();
+    void applySetupResult(const ProjectSetupScreen::SetupResult &result);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KiraNastroEditor)
 };

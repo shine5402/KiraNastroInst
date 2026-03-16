@@ -66,6 +66,10 @@ KiraNastroEditor::KiraNastroEditor(KiraNastroProcessor &p) : AudioProcessorEdito
     }
 
     startTimerHz(30);
+
+    // Show setup screen on first launch
+    if (!m_audioProcessor.hasCompletedSetup())
+        showSetupScreen();
 }
 
 KiraNastroEditor::~KiraNastroEditor()
@@ -78,6 +82,12 @@ KiraNastroEditor::~KiraNastroEditor()
 //==============================================================================
 void KiraNastroEditor::paint(juce::Graphics &g)
 {
+    if (m_showingSetup) {
+        // Setup screen paints itself; just clear background
+        g.fillAll(m_lookAndFeel.background());
+        return;
+    }
+
     // 1. Background
     g.fillAll(m_lookAndFeel.background());
 
@@ -210,6 +220,11 @@ void KiraNastroEditor::paint(juce::Graphics &g)
 
 void KiraNastroEditor::resized()
 {
+    if (m_showingSetup && m_setupScreen) {
+        m_setupScreen->setBounds(getLocalBounds());
+        return;
+    }
+
     // TimingIndicator: bottom-right inside card padding
     m_timingIndicator->setBounds(720, 84, 48, 32);
 
@@ -228,6 +243,10 @@ void KiraNastroEditor::resized()
 //==============================================================================
 void KiraNastroEditor::timerCallback()
 {
+    // Skip main view updates while showing setup screen
+    if (m_showingSetup)
+        return;
+
     auto info = m_audioProcessor.getCurrentEntryInfo();
     bool changed = (info.index != m_lastEntryIndex || info.name != m_currentEntryName);
 
@@ -289,12 +308,128 @@ void KiraNastroEditor::reloadChipIcons()
     m_progressIcon = Icons::load(Icons::percentSvg, m_lookAndFeel.onSecondaryContainer());
 }
 
+void KiraNastroEditor::showSetupScreen()
+{
+    if (m_showingSetup)
+        return;
+
+    m_showingSetup = true;
+
+    m_setupScreen = std::make_unique<ProjectSetupScreen>();
+    m_setupScreen->onComplete = [this](const ProjectSetupScreen::SetupResult &result) {
+        applySetupResult(result);
+    };
+
+    // Pre-populate from current processor state
+    const bool reclistBuiltin = (m_audioProcessor.getReclistSource() ==
+                                 KiraNastroProcessor::ResourceSource::Builtin);
+    m_setupScreen->setInitialReclistSelection(
+        reclistBuiltin,
+        m_audioProcessor.getBuiltinReclistId(),
+        juce::File(m_audioProcessor.hasCompletedSetup() ? "" : ""));
+
+    const bool bgmBuiltin = (m_audioProcessor.getBGMSource() ==
+                             KiraNastroProcessor::ResourceSource::Builtin);
+    m_setupScreen->setInitialBGMSelection(
+        bgmBuiltin,
+        m_audioProcessor.getBuiltinBGMTempo(),
+        m_audioProcessor.getBuiltinBGMKey());
+
+    addAndMakeVisible(m_setupScreen.get());
+
+    // Hide standalone controls during setup
+    if (m_playbackControls)
+        m_playbackControls->setVisible(false);
+    if (m_progressSlider)
+        m_progressSlider->setVisible(false);
+
+    // Always 288px during setup (compact design)
+    setSize(800, 288);
+}
+
+void KiraNastroEditor::hideSetupScreen()
+{
+    if (!m_showingSetup)
+        return;
+
+    m_showingSetup = false;
+    m_setupScreen.reset();
+
+    // Restore normal window size
+    const bool isStandalone = (m_audioProcessor.wrapperType == juce::AudioProcessor::wrapperType_Standalone);
+    setSize(800, isStandalone ? 360 : 232);
+
+    // Show standalone controls again
+    if (m_playbackControls)
+        m_playbackControls->setVisible(true);
+    if (m_progressSlider)
+        m_progressSlider->setVisible(true);
+}
+
+void KiraNastroEditor::applySetupResult(const ProjectSetupScreen::SetupResult &result)
+{
+    bool reclistOk = false;
+    bool bgmOk = false;
+
+    if (result.reclistSource == ProjectSetupScreen::SetupResult::Source::Builtin) {
+        reclistOk = m_audioProcessor.loadBuiltinReclist(result.builtinReclistId);
+    } else {
+        reclistOk = m_audioProcessor.loadReclist(result.customReclistFile);
+    }
+
+    if (!reclistOk) {
+        MD3Dialog::show("Failed to Load Reclist",
+                        "The selected reclist could not be loaded. "
+                        "Please try a different file.",
+                        "OK", this);
+        return;
+    }
+
+    if (result.bgmSource == ProjectSetupScreen::SetupResult::Source::Builtin) {
+        auto bgmResult = m_audioProcessor.loadBuiltinBGM(result.builtinBGMTempo, result.builtinBGMKey);
+        bgmOk = (bgmResult == KiraNastroProcessor::BGMLoadResult::Success);
+        if (!bgmOk) {
+            MD3Dialog::show("Failed to Load BGM",
+                            "The built-in BGM could not be loaded. "
+                            "This is unexpected — please try another tempo/key combination.",
+                            "OK", this);
+            return;
+        }
+    } else {
+        auto bgmResult = m_audioProcessor.loadGuideBGM(result.customBGMFile);
+        bgmOk = (bgmResult == KiraNastroProcessor::BGMLoadResult::Success);
+        if (!bgmOk) {
+            juce::String msg;
+            switch (bgmResult) {
+                case KiraNastroProcessor::BGMLoadResult::Success:
+                    break; // unreachable (bgmOk == false), but silences -Wswitch-enum
+                case KiraNastroProcessor::BGMLoadResult::AudioLoadFailed:
+                    msg = "The audio file could not be loaded. "
+                          "It may be corrupted or in an unsupported format.";
+                    break;
+                case KiraNastroProcessor::BGMLoadResult::TimingFileMissing:
+                    msg = "No timing description file (.txt) was found alongside the audio file. "
+                          "Place the OREMO timing file in the same folder with the same base name.";
+                    break;
+                case KiraNastroProcessor::BGMLoadResult::TimingFileInvalid:
+                    msg = "The timing description file has an unrecognized format. "
+                          "KiraNastro inst. requires an OREMO-standard 6-row timing file.";
+                    break;
+            }
+            MD3Dialog::show("Failed to Load BGM", msg, "OK", this);
+            return;
+        }
+    }
+
+    m_audioProcessor.setHasCompletedSetup(true);
+    hideSetupScreen();
+}
+
 void KiraNastroEditor::showMenu()
 {
     juce::PopupMenu menu;
     menu.setLookAndFeel(&m_lookAndFeel);
-    menu.addItem(1, "Load Reclist...");
-    menu.addItem(2, "Load BGM...");
+    menu.addItem(5, "Project Setup...");
     menu.addSeparator();
     const bool canExport = m_audioProcessor.isBGMLoaded() && m_audioProcessor.m_totalEntries.load() > 0;
     menu.addItem(4, "Export KiraWavTar Desc...", canExport);
@@ -308,55 +443,8 @@ void KiraNastroEditor::showMenu()
             .withMinimumWidth(200)
             .withMaximumNumColumns(1),
         [this](int result) {
-            if (result == 1) {
-                m_reclistChooser = std::make_unique<juce::FileChooser>("Select Reclist File", juce::File(), "*.txt");
-                m_reclistChooser->launchAsync(juce::FileBrowserComponent::openMode |
-                                                  juce::FileBrowserComponent::canSelectFiles,
-                                              [this](const juce::FileChooser &f) {
-                                                  auto file = f.getResult();
-                                                  if (file.exists()) {
-                                                      if (!m_audioProcessor.loadReclist(file))
-                                                          MD3Dialog::show("Failed to Load Reclist",
-                                                                          "The selected file could not be read as a reclist. "
-                                                                          "It may be in an unsupported encoding or format. "
-                                                                          "KiraNastro inst. supports UTF-8 and Shift-JIS text files.",
-                                                                          "OK", this);
-                                                  }
-                                                  m_reclistChooser.reset();
-                                              });
-            }
-            else if (result == 2) {
-                m_bgmChooser = std::make_unique<juce::FileChooser>("Select BGM File", juce::File(), m_audioProcessor.getSupportedAudioExtensions());
-                m_bgmChooser->launchAsync(juce::FileBrowserComponent::openMode |
-                                              juce::FileBrowserComponent::canSelectFiles,
-                                          [this](const juce::FileChooser &f) {
-                                              auto file = f.getResult();
-                                              if (file.exists()) {
-                                                  auto bgmResult = m_audioProcessor.loadGuideBGM(file);
-                                                  juce::String msg;
-                                                  switch (bgmResult) {
-                                                      case KiraNastroProcessor::BGMLoadResult::Success:
-                                                          break;
-                                                      case KiraNastroProcessor::BGMLoadResult::AudioLoadFailed:
-                                                          msg = "The selected audio file could not be loaded. "
-                                                                "It may be corrupted or in a format not supported on this platform.";
-                                                          break;
-                                                      case KiraNastroProcessor::BGMLoadResult::TimingFileMissing:
-                                                          msg = "No timing description file was found alongside the audio file. "
-                                                                "Place the OREMO timing file (.txt) in the same folder "
-                                                                "with the same base name (e.g. Jazz-100-A.txt).";
-                                                          break;
-                                                      case KiraNastroProcessor::BGMLoadResult::TimingFileInvalid:
-                                                          msg = "The timing description file has an unrecognized format. "
-                                                                "KiraNastro inst. requires an OREMO-standard 6-row timing file. "
-                                                                "Try regenerating it with korede (bundled with OREMO).";
-                                                          break;
-                                                  }
-                                                  if (msg.isNotEmpty())
-                                                      MD3Dialog::show("Failed to Load BGM", msg, "OK", this);
-                                              }
-                                              m_bgmChooser.reset();
-                                          });
+            if (result == 5) {
+                showSetupScreen();
             }
             else if (result == 3) {
                 const bool newDark = !m_lookAndFeel.getDarkMode();
