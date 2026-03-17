@@ -211,8 +211,8 @@ void KiraNastroEditor::paint(juce::Graphics &g)
 
         // b. Progress chip (right-aligned)
         {
-            const int current = m_lastEntryIndex + 1;
             const int total = m_audioProcessor.m_totalEntries.load();
+            const int current = std::min(m_lastEntryIndex + 1, total);
             const juce::String progressStr = juce::String(current) + " / " + juce::String(total);
             const float textW = measureText(chipFont, progressStr);
             const float chipW = padH + iconSize + iconTextGap + textW + padH;
@@ -333,7 +333,10 @@ void KiraNastroEditor::timerCallback()
         repaint();
     }
 
-    m_timingIndicator->setProgress(m_audioProcessor.m_bgmLoopProgress.load(std::memory_order_relaxed));
+    const bool pastEnd = (m_audioProcessor.m_totalEntries.load() > 0 &&
+                          m_lastEntryIndex >= m_audioProcessor.m_totalEntries.load());
+    m_timingIndicator->setProgress(pastEnd ? 0.0f : m_audioProcessor.m_bgmLoopProgress.load(std::memory_order_relaxed));
+    m_timingIndicator->setVisible(!pastEnd);
 
     const float uStart = m_audioProcessor.m_utteranceStartFraction.load(std::memory_order_relaxed);
     const float uEnd   = m_audioProcessor.m_utteranceEndFraction.load(std::memory_order_relaxed);

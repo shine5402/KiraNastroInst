@@ -101,7 +101,8 @@ void KiraNastroProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::M
         // If a reclist is loaded, stop rendering after the last entry's cycle.
         const int total = m_totalEntries.load();
         if (total > 0 && cycleIndex >= total) {
-            m_currentEntryIndex.store(total - 1);
+            m_currentEntryIndex.store(total); // past-end sentinel
+            m_bgmLoopProgress.store(0.0f, std::memory_order_relaxed);
             m_bgmPlayer.stop();
             m_wasDAWPlayingLastBlock = dawPlaying;
             return;
@@ -157,6 +158,8 @@ void KiraNastroProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::M
             }
             else {
                 // End of reclist — stop playback
+                m_currentEntryIndex.store(total); // past-end sentinel
+                m_bgmLoopProgress.store(0.0f, std::memory_order_relaxed);
                 m_bgmPlayer.stop();
                 m_isBGMPlayingFlag = false;
                 return;
@@ -475,6 +478,11 @@ KiraNastroProcessor::EntryInfo KiraNastroProcessor::getCurrentEntryInfo() const
         if (m_reclistData->comments.count(info.name))
             info.comment = m_reclistData->comments.at(info.name);
     }
+    else if (info.total > 0 && info.index >= info.total)
+    {
+        // Past the last entry
+        info.name = "(END)";
+    }
     return info;
 }
 
@@ -490,6 +498,11 @@ KiraNastroProcessor::EntryInfo KiraNastroProcessor::getNextEntryInfo() const
         info.name = m_reclistData->entries[static_cast<size_t>(info.index)];
         if (m_reclistData->comments.count(info.name))
             info.comment = m_reclistData->comments.at(info.name);
+    }
+    else if (info.total > 0 && info.index >= info.total)
+    {
+        // Current entry is the last (or past it)
+        info.name = "(END)";
     }
     return info;
 }
@@ -551,10 +564,18 @@ void KiraNastroProcessor::seekBGM(double seconds)
     double offsetWithinBlock = std::fmod(sessionMs, blockDurationMs);
     double targetBgmMs = m_bgmBlockStartMs + offsetWithinBlock;
 
-    // Clamp entry index to reclist bounds
+    // Clamp entry index to reclist bounds, or mark past-end
     const int total = m_totalEntries.load();
     if (total > 0) {
-        m_currentEntryIndex.store(std::clamp(entryIndex, 0, total - 1));
+        if (entryIndex >= total) {
+            m_currentEntryIndex.store(total); // past-end sentinel
+            m_bgmLoopProgress.store(0.0f, std::memory_order_relaxed);
+            m_bgmPlayer.stop();
+            m_isBGMPlayingFlag = false;
+            m_projectPlayPositionSeconds.store(seconds, std::memory_order_relaxed);
+            return;
+        }
+        m_currentEntryIndex.store(std::max(entryIndex, 0));
     }
 
     const double fileSR = static_cast<double>(m_bgmPlayer.getSampleRate());
