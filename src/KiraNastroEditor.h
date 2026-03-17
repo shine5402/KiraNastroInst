@@ -49,6 +49,7 @@ public:
     //==============================================================================
     void timerCallback() override;
     void sliderValueChanged(juce::Slider *) override;
+    void mouseDown(const juce::MouseEvent &event) override;
 
 private:
     KiraNastroProcessor &m_audioProcessor;

@@ -30,6 +30,18 @@ static const char *const folderOpenSvg =
 static const char *const closeSvg =
     R"SVG(<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#1f1f1f"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg>)SVG";
 
+static const char *const playArrowSvg =
+    R"SVG(<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#1f1f1f"><path d="M320-200v-560l440 280-440 280Z"/></svg>)SVG";
+
+static const char *const stopSvg =
+    R"SVG(<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#1f1f1f"><path d="M240-240v-480h480v480H240Z"/></svg>)SVG";
+
+static const char *const skipNextSvg =
+    R"SVG(<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#1f1f1f"><path d="M660-240v-480h80v480h-80Zm-440 0v-480l360 240-360 240Z"/></svg>)SVG";
+
+static const char *const skipPreviousSvg =
+    R"SVG(<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#1f1f1f"><path d="M220-240v-480h80v480h-80Zm520 0L380-480l360-240v480Z"/></svg>)SVG";
+
 // Load SVG and replace its #1f1f1f fill with the given tint colour
 inline std::unique_ptr<juce::Drawable> load(const char *svgText, juce::Colour tint = juce::Colour(0xFF1F1F1F))
 {

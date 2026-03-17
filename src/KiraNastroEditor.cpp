@@ -98,13 +98,14 @@ KiraNastroEditor::KiraNastroEditor(KiraNastroProcessor &p) : AudioProcessorEdito
         m_progressSlider = std::make_unique<juce::Slider>();
         addAndMakeVisible(m_progressSlider.get());
         m_progressSlider->addListener(this);
+        m_progressSlider->addMouseListener(this, false);
         m_progressSlider->setRange(0.0, 600.0, 0.1);
         m_progressSlider->setSliderStyle(juce::Slider::LinearHorizontal);
-        m_progressSlider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 100, 20);
+        m_progressSlider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 20);
         m_progressSlider->setTextValueSuffix(" s");
 
-        m_constrainer.setFixedHeight(360);
-        setSize(800, 360);
+        m_constrainer.setFixedHeight(268);
+        setSize(800, 268);
     }
     else {
         m_constrainer.setFixedHeight(232);
@@ -298,9 +299,14 @@ void KiraNastroEditor::resized()
     m_menuButton->setBounds(w - 32, 200, 24, 24);
 
     if (m_playbackControls) {
-        m_progressSlider->setBounds(20, 242, getWidth() - 40, 32);
+        // Debug area: y=232..296 (64px). Centre controls + slider on same row.
+        const int debugY = 232;
+        const int debugH = getHeight() - debugY;
+        const int rowH = 28; // match kHitSize
+        const int rowY = debugY + (debugH - rowH) / 2;
+        m_playbackControls->setBounds(8, rowY, 100, rowH);
+        m_progressSlider->setBounds(108, rowY, getWidth() - 128, rowH);
         m_progressSlider->setColour(juce::Slider::textBoxTextColourId, KiraNastroLookAndFeel::md3Primary);
-        m_playbackControls->setBounds(0, 278, getWidth(), 64);
     }
 }
 
@@ -352,7 +358,9 @@ void KiraNastroEditor::timerCallback()
             m_progressSlider->setValue(currentPos, juce::dontSendNotification);
 
         const double bgmLength = m_audioProcessor.getBGMLengthSeconds();
-        const double projectLength = bgmLength * 10.0;
+        const int totalEntries = m_audioProcessor.m_totalEntries.load();
+        // Range = all entries + 1 extra cycle (to test past-last behavior)
+        const double projectLength = bgmLength * (totalEntries + 1);
         const double currentMax = m_progressSlider->getMaximum();
         if (bgmLength > 0 && std::abs(currentMax - projectLength) > 0.1) {
             m_progressSlider->setRange(0.0, projectLength, 0.1);
@@ -364,6 +372,32 @@ void KiraNastroEditor::sliderValueChanged(juce::Slider *slider)
 {
     if (m_progressSlider && slider == m_progressSlider.get())
         m_audioProcessor.seekBGM(slider->getValue());
+}
+
+void KiraNastroEditor::mouseDown(const juce::MouseEvent &event)
+{
+    // Right-click on progress slider → seek by entry index
+    if (m_progressSlider && event.mods.isPopupMenu() &&
+        event.originalComponent == m_progressSlider.get()) {
+            auto *aw = new juce::AlertWindow("Seek to Entry", "Enter entry index (0-based):",
+                                              juce::MessageBoxIconType::NoIcon);
+            aw->addTextEditor("entry", juce::String(m_audioProcessor.m_currentEntryIndex.load()));
+            aw->addButton("OK", 1, juce::KeyPress(juce::KeyPress::returnKey));
+            aw->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+            aw->enterModalState(true, juce::ModalCallbackFunction::create(
+                [this, aw](int result) {
+                    if (result == 1) {
+                        auto text = aw->getTextEditorContents("entry");
+                        int idx = text.getIntValue();
+                        double cycle = m_audioProcessor.getBGMLengthSeconds();
+                        if (cycle > 0.0)
+                            m_audioProcessor.seekBGM(idx * cycle);
+                    }
+                    delete aw;
+                }), true);
+            return;
+    }
+    juce::Component::mouseDown(event);
 }
 
 void KiraNastroEditor::reloadChipIcons()
@@ -423,7 +457,7 @@ void KiraNastroEditor::hideSetupScreen()
 
     // Restore normal window height, keep current width
     const bool isStandalone = (m_audioProcessor.wrapperType == juce::AudioProcessor::wrapperType_Standalone);
-    const int h = isStandalone ? 360 : 232;
+    const int h = isStandalone ? 268 : 232;
     m_constrainer.setFixedHeight(h);
     setSize(getWidth(), h);
 
