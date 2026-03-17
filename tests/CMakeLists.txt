@@ -22,6 +22,11 @@ target_include_directories(KiraNastro_Tests PRIVATE
     ../src
 )
 
+# Force MSVC to read/emit UTF-8, bypassing the system code page
+if(MSVC)
+    target_compile_options(KiraNastro_Tests PRIVATE /utf-8)
+endif()
+
 target_compile_definitions(KiraNastro_Tests PRIVATE
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0

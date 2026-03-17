@@ -47,6 +47,9 @@ FetchContent_GetProperties(opus)
 list(APPEND CMAKE_PREFIX_PATH "${ogg_BINARY_DIR}" "${opus_BINARY_DIR}")
 
 # opusfile v0.12 has no CMakeLists.txt — populate sources only, then build manually.
+# CMP0169: suppress deprecation of FetchContent_Populate; we intentionally avoid
+# FetchContent_MakeAvailable because opusfile has no CMakeLists.txt to add_subdirectory.
+cmake_policy(SET CMP0169 OLD)
 FetchContent_GetProperties(opusfile)
 if(NOT opusfile_POPULATED)
     FetchContent_Populate(opusfile)
@@ -254,6 +257,11 @@ target_sources(KiraNastro
         src/utils/TextEncoding.h
         src/utils/TextEncoding.cpp
 )
+
+# Force MSVC to read/emit UTF-8, bypassing the system code page
+if(MSVC)
+    target_compile_options(KiraNastro PRIVATE /utf-8)
+endif()
 
 target_compile_definitions(KiraNastro
     PUBLIC
