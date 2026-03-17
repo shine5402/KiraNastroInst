@@ -1,4 +1,4 @@
-# KiraNastro Inst.
+# KiraNastro inst.
 
 <img width="1151" height="607" alt="3f15c21f7e6e58eabd4ca61e4f8ba72e" src="https://github.com/user-attachments/assets/e850e42a-14b4-4701-8581-a212efde6c5e" />
 
