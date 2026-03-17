@@ -52,9 +52,9 @@ For license and attribution information regarding built-in resources (reclist an
 
 ## 中文
 
-> ⚠️ 本工具目前为测试中的Alpha版本，尚未经过充分测试，使用时请自行承担风险。
+> ⚠️ 本工具目前为测试中的Alpha版本，尚未经过充分测试，使用时请注意可能会出现的bug。
 
-可以在DAW里进行UTAU音源收录的辅助插件。作为乐器插件在DAW内进行自发的BGM循环播放，切同时根据DAW的播放位置在画面上显示当前的录音条目。
+可以在DAW里进行UTAU音源收录的辅助插件。作为乐器插件在DAW内进行自发的BGM循环播放，同时会根据DAW的播放位置在画面上显示当前的录音条目。
 
 ### 使用方法
 
