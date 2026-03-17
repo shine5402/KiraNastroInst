@@ -11,6 +11,31 @@
 #include "ui/ProjectSetupScreen.h"
 #include "ui/TimingIndicator.h"
 
+// Constrainer that only allows horizontal (width) resizing.
+// Height is locked during user drags; programmatic setSize() still works.
+class WidthOnlyConstrainer : public juce::ComponentBoundsConstrainer
+{
+public:
+    void setFixedHeight(int h) { m_fixedHeight = h; }
+
+    void checkBounds(juce::Rectangle<int> &bounds,
+                     const juce::Rectangle<int> &previousBounds,
+                     const juce::Rectangle<int> &limits,
+                     bool isStretchingTop, bool isStretchingLeft,
+                     bool isStretchingBottom, bool isStretchingRight) override
+    {
+        ComponentBoundsConstrainer::checkBounds(bounds, previousBounds, limits,
+                                                isStretchingTop, isStretchingLeft,
+                                                isStretchingBottom, isStretchingRight);
+        // Lock height to the managed value
+        bounds.setHeight(m_fixedHeight);
+        bounds.setY(previousBounds.getY());
+    }
+
+private:
+    int m_fixedHeight = 232;
+};
+
 class KiraNastroEditor : public juce::AudioProcessorEditor, public juce::Timer, public juce::Slider::Listener
 {
 public:
@@ -28,6 +53,7 @@ public:
 private:
     KiraNastroProcessor &m_audioProcessor;
     KiraNastroLookAndFeel m_lookAndFeel;
+    WidthOnlyConstrainer m_constrainer;
 
     // Cached state for change detection
     int m_lastEntryIndex = -1;
@@ -68,6 +94,7 @@ private:
     void showSetupScreen();
     void hideSetupScreen();
     void applySetupResult(const ProjectSetupScreen::SetupResult &result);
+    void enforceMinWidthForEntry();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(KiraNastroEditor)
 };

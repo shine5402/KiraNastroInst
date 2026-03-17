@@ -12,6 +12,50 @@
 #include "utils/Fonts.h"
 #include "utils/Icons.h"
 
+namespace
+{
+// Fixed padding: left text margin (48) + timing indicator area (48+16+16) + gap (4)
+constexpr float kTextPadTotal = 132.0f;
+constexpr float kMinTextScale = 0.7f;
+constexpr int kAbsoluteMinW = 400;
+
+float measureTextWidth(const juce::Font &font, const juce::String &text)
+{
+    if (text.isEmpty())
+        return 0.0f;
+    juce::GlyphArrangement ga;
+    ga.addLineOfText(font, text, 0.0f, 0.0f);
+    return ga.getBoundingBox(0, -1, true).getWidth();
+}
+
+// Draw text with horizontal compression if too wide — never elides
+void drawTextCompressed(juce::Graphics &g, const juce::String &text,
+                        juce::Rectangle<float> bounds, const juce::Font &font,
+                        juce::Justification just)
+{
+    if (text.isEmpty())
+        return;
+
+    const float textW = measureTextWidth(font, text);
+    const float availW = bounds.getWidth();
+
+    g.setFont(font);
+
+    if (textW <= availW) {
+        g.drawText(text, bounds.toNearestInt(), just, false);
+    } else {
+        const float scale = availW / textW;
+        juce::Graphics::ScopedSaveState sss(g);
+        // Horizontal scale anchored at bounds left edge
+        g.addTransform(juce::AffineTransform(scale, 0.0f, bounds.getX() * (1.0f - scale),
+                                              0.0f, 1.0f, 0.0f));
+        g.drawText(text, juce::Rectangle<float>(bounds.getX(), bounds.getY(),
+                   textW + 2.0f, bounds.getHeight()).toNearestInt(),
+                   just, false);
+    }
+}
+} // namespace
+
 KiraNastroEditor::KiraNastroEditor(KiraNastroProcessor &p) : AudioProcessorEditor(&p), m_audioProcessor(p)
 {
     setLookAndFeel(&m_lookAndFeel);
@@ -59,12 +103,20 @@ KiraNastroEditor::KiraNastroEditor(KiraNastroProcessor &p) : AudioProcessorEdito
         m_progressSlider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 100, 20);
         m_progressSlider->setTextValueSuffix(" s");
 
+        m_constrainer.setFixedHeight(360);
         setSize(800, 360);
     }
     else {
+        m_constrainer.setFixedHeight(232);
         setSize(800, 232);
     }
 
+    // Custom constrainer: width-only resize (height locked during user drag).
+    // No corner resizer — the host/standalone wrapper provides its own resize
+    // handles and respects our constrainer.
+    setConstrainer(&m_constrainer);
+    setResizable(true, false);
+    enforceMinWidthForEntry();
     startTimerHz(30);
 
     // Show setup screen on first launch
@@ -91,19 +143,30 @@ void KiraNastroEditor::paint(juce::Graphics &g)
     // 1. Background
     g.fillAll(m_lookAndFeel.background());
 
+    const float w = static_cast<float>(getWidth());
+    const float textAreaW = w - kTextPadTotal;
+
     // 2. Card (MD3 Filled Card — no shadow)
     g.setColour(m_lookAndFeel.cardFilled());
-    g.fillRoundedRectangle(juce::Rectangle<float>(16.0f, 8.0f, 768.0f, 128.0f), 16.0f);
+    g.fillRoundedRectangle(juce::Rectangle<float>(16.0f, 8.0f, w - 32.0f, 128.0f), 16.0f);
 
-    // 3. Comment text (Sarasa 16pt, onSurfaceVariant)
-    g.setColour(m_lookAndFeel.onSurfaceVariant());
-    g.setFont(juce::Font(juce::FontOptions(Fonts::getSarasaRegular()).withHeight(16.0f)));
-    g.drawFittedText(m_currentEntryComment, juce::Rectangle<int>(48, 28, 668, 20), juce::Justification::left, 1);
+    // 3. Comment text (Sarasa 16pt, onSurfaceVariant) — horizontally compressed, never elided
+    {
+        const auto commentFont = juce::Font(juce::FontOptions(Fonts::getSarasaRegular()).withHeight(16.0f));
+        g.setColour(m_lookAndFeel.onSurfaceVariant());
+        drawTextCompressed(g, m_currentEntryComment,
+                           juce::Rectangle<float>(48.0f, 28.0f, textAreaW, 20.0f),
+                           commentFont, juce::Justification::left);
+    }
 
-    // 4. Entry text (Sarasa 48pt, primary)
-    g.setColour(m_lookAndFeel.primary());
-    g.setFont(juce::Font(juce::FontOptions(Fonts::getSarasaRegular()).withHeight(48.0f)));
-    g.drawFittedText(m_currentEntryName, juce::Rectangle<int>(48, 56, 668, 60), juce::Justification::left, 1);
+    // 4. Entry text (Sarasa 48pt, primary) — horizontally compressed, never elided
+    {
+        const auto entryFont = juce::Font(juce::FontOptions(Fonts::getSarasaRegular()).withHeight(48.0f));
+        g.setColour(m_lookAndFeel.primary());
+        drawTextCompressed(g, m_currentEntryName,
+                           juce::Rectangle<float>(48.0f, 56.0f, textAreaW, 60.0f),
+                           entryFont, juce::Justification::left);
+    }
 
     // 5. Info row chips
     {
@@ -152,7 +215,7 @@ void KiraNastroEditor::paint(juce::Graphics &g)
             const juce::String progressStr = juce::String(current) + " / " + juce::String(total);
             const float textW = measureText(chipFont, progressStr);
             const float chipW = padH + iconSize + iconTextGap + textW + padH;
-            const float chipX = 784.0f - chipW;
+            const float chipX = w - 16.0f - chipW;
             const juce::Rectangle<float> chipRect(chipX, chipY, chipW, chipH);
 
             g.setColour(m_lookAndFeel.secondaryContainer());
@@ -177,7 +240,7 @@ void KiraNastroEditor::paint(juce::Graphics &g)
         const float navBarY = 192.0f;
         const float navBarH = 40.0f;
         g.setColour(m_lookAndFeel.navBar());
-        g.fillRect(0.0f, navBarY, 800.0f, navBarH);
+        g.fillRect(0.0f, navBarY, w, navBarH);
 
         // Font setup
         const auto navFont = juce::Font(juce::FontOptions(Fonts::getLexendRegular()).withPointHeight(14.0f));
@@ -214,7 +277,7 @@ void KiraNastroEditor::paint(juce::Graphics &g)
     if (m_playbackControls) {
         // 7. Debug area background (y=232)
         g.setColour(juce::Colour(0xFFDBEAFE));
-        g.fillRect(0, 232, 800, getHeight() - 232);
+        g.fillRect(0, 232, getWidth(), getHeight() - 232);
     }
 }
 
@@ -225,13 +288,14 @@ void KiraNastroEditor::resized()
         return;
     }
 
+    const int w = getWidth();
+
     // TimingIndicator: bottom-right inside card padding
-    m_timingIndicator->setBounds(720, 84, 48, 32);
+    m_timingIndicator->setBounds(w - 80, 84, 48, 32);
 
     // Hamburger menu button: 24x24 (same as nav bar logo), right-aligned,
-    // vertically centred Nav bar: y=192, h=40 → icon y = 192 + (40-24)/2 = 200; x
-    // = 800 - 8(pad) - 24 = 768
-    m_menuButton->setBounds(768, 200, 24, 24);
+    // vertically centred Nav bar: y=192, h=40 → icon y = 192 + (40-24)/2 = 200
+    m_menuButton->setBounds(w - 32, 200, 24, 24);
 
     if (m_playbackControls) {
         m_progressSlider->setBounds(20, 242, getWidth() - 40, 32);
@@ -259,6 +323,7 @@ void KiraNastroEditor::timerCallback()
         m_nextEntryName = nextInfo.name;
         m_nextEntryComment = nextInfo.comment;
 
+        enforceMinWidthForEntry();
         repaint();
     }
 
@@ -343,8 +408,9 @@ void KiraNastroEditor::showSetupScreen()
     if (m_progressSlider)
         m_progressSlider->setVisible(false);
 
-    // Always 288px during setup (compact design)
-    setSize(800, 288);
+    // Keep current width, set 288px height during setup (compact design)
+    m_constrainer.setFixedHeight(288);
+    setSize(getWidth(), 288);
 }
 
 void KiraNastroEditor::hideSetupScreen()
@@ -355,9 +421,11 @@ void KiraNastroEditor::hideSetupScreen()
     m_showingSetup = false;
     m_setupScreen.reset();
 
-    // Restore normal window size
+    // Restore normal window height, keep current width
     const bool isStandalone = (m_audioProcessor.wrapperType == juce::AudioProcessor::wrapperType_Standalone);
-    setSize(800, isStandalone ? 360 : 232);
+    const int h = isStandalone ? 360 : 232;
+    m_constrainer.setFixedHeight(h);
+    setSize(getWidth(), h);
 
     // Show standalone controls again
     if (m_playbackControls)
@@ -423,6 +491,38 @@ void KiraNastroEditor::applySetupResult(const ProjectSetupScreen::SetupResult &r
 
     m_audioProcessor.setHasCompletedSetup(true);
     hideSetupScreen();
+}
+
+void KiraNastroEditor::enforceMinWidthForEntry()
+{
+    // Measure entry text at full font size (48pt Sarasa)
+    const auto entryFont = juce::Font(juce::FontOptions(Fonts::getSarasaRegular()).withHeight(48.0f));
+    const float entryTextW = measureTextWidth(entryFont, m_currentEntryName);
+
+    // Measure comment text at full font size (16pt Sarasa)
+    const auto commentFont = juce::Font(juce::FontOptions(Fonts::getSarasaRegular()).withHeight(16.0f));
+    const float commentTextW = measureTextWidth(commentFont, m_currentEntryComment);
+
+    const float maxTextW = std::max(entryTextW, commentTextW);
+
+    // Min width: text should not be compressed below 70% of its natural width
+    int minW = std::max(kAbsoluteMinW, static_cast<int>(std::ceil(kMinTextScale * maxTextW + kTextPadTotal)));
+
+    // Max width: 70% of screen width
+    int maxW = 1600;
+    if (auto *display = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay())
+        maxW = static_cast<int>(0.7f * static_cast<float>(display->userArea.getWidth()));
+    maxW = std::max(maxW, minW);
+
+    // Only constrain width — never touch height constraints, so screen
+    // transitions (setup ↔ main) can freely setSize to a different height.
+    if (auto *c = getConstrainer()) {
+        c->setMinimumWidth(minW);
+        c->setMaximumWidth(maxW);
+    }
+
+    if (getWidth() < minW)
+        setSize(minW, getHeight());
 }
 
 void KiraNastroEditor::showMenu()
