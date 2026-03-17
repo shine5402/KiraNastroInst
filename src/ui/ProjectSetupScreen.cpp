@@ -13,7 +13,7 @@ namespace
 {
 constexpr int kEdgePad    = 12;
 constexpr int kGap        = 8;
-constexpr int kNavBarH    = 42;
+constexpr int kNavBarH    = 40;
 constexpr int kBtnColW    = 56;  // MD3e Icon Button M size
 constexpr int kComboH     = 52;
 constexpr int kCustomBtnH = 34;
