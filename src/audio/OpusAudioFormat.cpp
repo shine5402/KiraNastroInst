@@ -168,7 +168,7 @@ private:
 
 //==============================================================================
 OpusAudioFormat::OpusAudioFormat()
-    : juce::AudioFormat("Opus audio file", "*.opus")
+    : juce::AudioFormat("Opus audio file", ".opus .ogg")
 {
 }
 

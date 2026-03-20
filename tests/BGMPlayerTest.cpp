@@ -341,6 +341,31 @@ TEST_CASE("BGMPlayer: loads Opus (stereo)", "[BGMPlayer][formats]") {
     checkFormatLoad(kOpusPath, 2, 48000);
 }
 
+TEST_CASE("BGMPlayer: loads Opus from memory", "[BGMPlayer][formats]") {
+    juce::File f(kOpusPath);
+    REQUIRE(f.existsAsFile());
+
+    juce::MemoryBlock mb;
+    f.loadFileAsData(mb);
+    REQUIRE(mb.getSize() > 0);
+
+    BGMPlayer player;
+    REQUIRE(player.loadFromMemory(mb.getData(), mb.getSize()) == true);
+    CHECK(player.isLoaded() == true);
+    CHECK(player.getSampleRate() == 48000);
+    CHECK(player.getNumChannels() == 2);
+    CHECK(player.getTotalSamples() > 0);
+
+    player.prepareToPlay(48000, 512);
+    player.seekToSample(48000); // 1 s in
+    player.play();
+
+    juce::AudioBuffer<float> buf(2, 512);
+    buf.clear();
+    player.renderNextBlock(buf, 0, 512);
+    CHECK(buf.getMagnitude(0, 512) > 0.0f);
+}
+
 TEST_CASE("BGMPlayer: loads AIFF (stereo)", "[BGMPlayer][formats]") {
     checkFormatLoad(kAiffPath, 2, 44100);
 }

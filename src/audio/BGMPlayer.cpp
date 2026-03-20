@@ -7,8 +7,10 @@
 
 BGMPlayer::BGMPlayer()
 {
-    m_formatManager.registerBasicFormats();
+    // Register Opus first so it takes priority over JUCE's built-in MP3
+    // decoder, which falsely claims to decode Opus streams.
     m_formatManager.registerFormat(new OpusAudioFormat(), false);
+    m_formatManager.registerBasicFormats();
 }
 
 static bool loadReaderIntoPlayer(juce::AudioFormatReader *rawReader,
