@@ -5,6 +5,12 @@
 
 #include "../utils/Fonts.h"
 
+#if JUCE_WINDOWS
+#include <windows.h>
+#include <dwmapi.h>
+#pragma comment(lib, "dwmapi.lib")
+#endif
+
 // MD3 Light Scheme
 const juce::Colour KiraNastroLookAndFeel::md3Background{0xFFFBF8FF};
 const juce::Colour KiraNastroLookAndFeel::md3CardFilled{0xFFF4F2FA};
@@ -254,7 +260,13 @@ void KiraNastroLookAndFeel::drawPopupMenuBackground(juce::Graphics &g, int width
 {
     const juce::Rectangle<float> bounds(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
     g.setColour(m_comboPopupActive ? surfaceContainerLowest() : surfaceContainerHighest());
+#if JUCE_WINDOWS
+    // On Windows we let DWM handle rounded corners via DWMWCP_ROUND,
+    // so fill the full rectangle — DWM clips to the native radius.
+    g.fillRect(bounds);
+#else
     g.fillRoundedRectangle(bounds, 16.0f);
+#endif
     // No outline — MD3 menus have no border
 }
 
@@ -289,8 +301,14 @@ void KiraNastroLookAndFeel::drawPopupMenuItem(juce::Graphics &g, const juce::Rec
     };
 
     auto highlightBounds = area.toFloat().reduced(2.0f, 0.0f);
+#if JUCE_WINDOWS
+    // Match Win11 native window corner radius (~8px)
+    float topR = isFirstItem ? 8.0f : 4.0f;
+    float botR = isLastItem ? 8.0f : 4.0f;
+#else
     float topR = isFirstItem ? 16.0f : 4.0f;
     float botR = isLastItem ? 16.0f : 4.0f;
+#endif
 
     // Selected (ticked) background — primaryContainer, 1px shrink top/bottom for gap
     // but NOT on the top of first item or bottom of last item
@@ -385,6 +403,53 @@ juce::BorderSize<int> KiraNastroLookAndFeel::getPopupMenuBorderSizeAsBorder(cons
 {
     // MD3: 2px vertical padding, 12px horizontal padding
     return juce::BorderSize<int>(2, 12, 2, 12);
+}
+
+int KiraNastroLookAndFeel::getMenuWindowFlags()
+{
+#if JUCE_WINDOWS
+    // Return 0 to prevent JUCE's software DropShadower (which draws a
+    // rectangular shadow).  We set up native DWM shadow instead in
+    // preparePopupMenuWindow().
+    return 0;
+#else
+    return juce::ComponentPeer::windowHasDropShadow;
+#endif
+}
+
+void KiraNastroLookAndFeel::preparePopupMenuWindow(juce::Component &newWindow)
+{
+#if JUCE_WINDOWS
+    if (auto *peer = newWindow.getPeer()) {
+        auto hwnd = static_cast<HWND>(peer->getNativeHandle());
+
+        // Add WS_CAPTION so DWM treats this as a framed window.
+        // JUCE's WM_NCCALCSIZE handler already removes the non-client area
+        // for non-titled windows, so no caption bar will appear.
+        auto style = GetWindowLongPtr(hwnd, GWL_STYLE);
+        SetWindowLongPtr(hwnd, GWL_STYLE, style | WS_CAPTION);
+
+        // Extend the DWM frame into the entire client area.  This lets DWM
+        // draw the native shadow around the window.
+        MARGINS margins = {-1, -1, -1, -1};
+        DwmExtendFrameIntoClientArea(hwnd, &margins);
+
+        // Request Win11 native rounded corners — the shadow follows the
+        // rounded shape automatically.
+        constexpr DWORD DWMWA_WINDOW_CORNER_PREFERENCE_VALUE = 33;
+        constexpr DWORD DWMWCP_ROUND_VALUE = 2;
+        DWORD preference = DWMWCP_ROUND_VALUE;
+        DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE_VALUE,
+                              &preference, sizeof(preference));
+
+        // Force Windows to recalculate the frame.
+        SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
+                     SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE
+                         | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+#else
+    juce::ignoreUnused(newWindow);
+#endif
 }
 
 void KiraNastroLookAndFeel::drawAlertBox(juce::Graphics &g, juce::AlertWindow &alert,

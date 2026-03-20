@@ -116,6 +116,8 @@ public:
                                    int &idealWidth, int &idealHeight) override;
     int getPopupMenuBorderSize() override;
     juce::BorderSize<int> getPopupMenuBorderSizeAsBorder(const juce::PopupMenu::Options& options) override;
+    int getMenuWindowFlags() override;
+    void preparePopupMenuWindow(juce::Component &newWindow) override;
 
     // MD3 dialog (AlertWindow)
     void drawAlertBox(juce::Graphics &, juce::AlertWindow &, const juce::Rectangle<int> &textArea,
