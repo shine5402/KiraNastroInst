@@ -39,9 +39,16 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.27")
     set(CMAKE_POLICY_VERSION_MINIMUM "3.5" CACHE INTERNAL "")
 endif()
 
+# Disable third-party tests (ogg, opus) so they don't pollute our CTest.
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(OPUS_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+
 # Build ogg and opus first; then add their build dirs to CMAKE_PREFIX_PATH so
 # opusfile's internal find_package(Ogg) / find_package(Opus) calls find them.
 FetchContent_MakeAvailable(ogg opus)
+
+# Re-enable testing for our own tests.
+set(BUILD_TESTING ON CACHE BOOL "" FORCE)
 FetchContent_GetProperties(ogg)
 FetchContent_GetProperties(opus)
 list(APPEND CMAKE_PREFIX_PATH "${ogg_BINARY_DIR}" "${opus_BINARY_DIR}")

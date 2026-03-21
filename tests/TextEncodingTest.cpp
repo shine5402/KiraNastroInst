@@ -123,7 +123,7 @@ TEST_CASE("utf16ToString: UTF-16 BE ASCII string", "[TextEncoding]")
     CHECK(TextEncoding::utf16ToString(bytes, sizeof(bytes), true) == juce::String("hi"));
 }
 
-TEST_CASE("utf16ToString: UTF-16 LE Japanese character U+3042 (あ)", "[TextEncoding]")
+TEST_CASE("utf16ToString: UTF-16 LE Japanese character U+3042", "[TextEncoding]")
 {
     // BOM + U+3042 in UTF-16 LE: 42 30
     const uint8_t bytes[] = { 0xFF, 0xFE, 0x42, 0x30 };
@@ -131,7 +131,7 @@ TEST_CASE("utf16ToString: UTF-16 LE Japanese character U+3042 (あ)", "[TextEnco
     CHECK(result == juce::String::fromUTF8("\xe3\x81\x82")); // "あ" in UTF-8
 }
 
-TEST_CASE("utf16ToString: UTF-16 BE Japanese character U+3042 (あ)", "[TextEncoding]")
+TEST_CASE("utf16ToString: UTF-16 BE Japanese character U+3042", "[TextEncoding]")
 {
     // BOM + U+3042 in UTF-16 BE: 30 42
     const uint8_t bytes[] = { 0xFE, 0xFF, 0x30, 0x42 };
