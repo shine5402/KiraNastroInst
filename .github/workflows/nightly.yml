@@ -1,0 +1,174 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Ninja
+        run: brew install ninja
+
+      - name: Configure
+        run: cmake --preset release-universal
+
+      - name: Build VST3
+        run: cmake --build build/release-universal --target KiraNastro_VST3
+
+      - name: Build AU
+        run: cmake --build build/release-universal --target KiraNastro_AU
+
+      - name: Package
+        working-directory: build/release-universal/KiraNastro_artefacts/Release
+        run: tar cJf "$GITHUB_WORKSPACE/KiraNastro-nightly-macOS.tar.xz" VST3/ AU/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KiraNastro-nightly-macOS
+          path: KiraNastro-nightly-macOS.tar.xz
+          retention-days: 1
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Ninja
+        run: choco install ninja
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure
+        run: cmake --preset release
+
+      - name: Build VST3
+        run: cmake --build build/release --target KiraNastro_VST3
+
+      - name: Package
+        working-directory: build/release/KiraNastro_artefacts/Release
+        run: tar cJf "$env:GITHUB_WORKSPACE/KiraNastro-nightly-Windows.tar.xz" VST3/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KiraNastro-nightly-Windows
+          path: KiraNastro-nightly-Windows.tar.xz
+          retention-days: 1
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build \
+            pkg-config \
+            libasound2-dev \
+            libjack-jackd2-dev \
+            ladspa-sdk \
+            libcurl4-openssl-dev \
+            libfreetype-dev \
+            libfontconfig1-dev \
+            libx11-dev \
+            libxcomposite-dev \
+            libxcursor-dev \
+            libxext-dev \
+            libxinerama-dev \
+            libxrandr-dev \
+            libxrender-dev \
+            libwebkit2gtk-4.1-dev \
+            libglu1-mesa-dev \
+            mesa-common-dev
+
+      - name: Configure
+        run: cmake --preset release
+
+      - name: Build VST3
+        run: cmake --build build/release --target KiraNastro_VST3
+
+      - name: Build LV2
+        run: cmake --build build/release --target KiraNastro_LV2
+
+      - name: Package
+        working-directory: build/release/KiraNastro_artefacts/Release
+        run: tar cJf "$GITHUB_WORKSPACE/KiraNastro-nightly-Linux.tar.xz" VST3/ LV2/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KiraNastro-nightly-Linux
+          path: KiraNastro-nightly-Linux.tar.xz
+          retention-days: 1
+
+  release:
+    needs: [build-macos, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="nightly-$(date -u +%Y-%m-%d)"
+
+          # Delete existing release for today if re-triggered
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "Release $tag already exists, replacing..."
+            gh release delete "$tag" --yes --cleanup-tag
+          fi
+
+          gh release create "$tag" \
+            --title "Nightly build ($tag)" \
+            --notes "Automated nightly build from \`main\` branch.
+
+          **Formats included:**
+          - **macOS** (Universal): VST3, AU
+          - **Windows**: VST3
+          - **Linux**: VST3, LV2" \
+            --prerelease \
+            artifacts/KiraNastro-nightly-macOS.tar.xz \
+            artifacts/KiraNastro-nightly-Windows.tar.xz \
+            artifacts/KiraNastro-nightly-Linux.tar.xz
+
+      - name: Clean up old nightlies
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # List all nightly releases sorted by date (newest first), skip first 3, delete the rest
+          gh release list --limit 100 | \
+            grep '^nightly-' | \
+            awk '{print $1}' | \
+            tail -n +4 | \
+            while read -r tag; do
+              echo "Deleting old nightly: $tag"
+              gh release delete "$tag" --yes --cleanup-tag
+            done
