@@ -61,15 +61,14 @@ jobs:
         run: cmake --build build/release --target KiraNastro_VST3
 
       - name: Package
-        shell: bash
         working-directory: build/release/KiraNastro_artefacts/Release
-        run: tar cJf "$GITHUB_WORKSPACE/KiraNastro-nightly-Windows.tar.xz" VST3/
+        run: 7z a "$env:GITHUB_WORKSPACE/KiraNastro-nightly-Windows.7z" VST3/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: KiraNastro-nightly-Windows
-          path: KiraNastro-nightly-Windows.tar.xz
+          path: KiraNastro-nightly-Windows.7z
           retention-days: 1
 
   build-linux:
@@ -156,7 +155,7 @@ jobs:
           - **Linux**: VST3, LV2" \
             --prerelease \
             artifacts/KiraNastro-nightly-macOS.tar.xz \
-            artifacts/KiraNastro-nightly-Windows.tar.xz \
+            artifacts/KiraNastro-nightly-Windows.7z \
             artifacts/KiraNastro-nightly-Linux.tar.xz
 
       - name: Clean up old nightlies
