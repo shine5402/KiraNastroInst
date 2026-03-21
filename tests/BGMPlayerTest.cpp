@@ -5,7 +5,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 // Bundled test data — see tests/testdata/NOTES.md for license info
-static constexpr const char *kJazzWavPath  = TEST_DATA_DIR "/Jazz-100-A.wav";
+static constexpr const char *kJazzOpusPath = TEST_DATA_DIR "/Jazz-100-A.opus";
 static constexpr const char *kFlacPath     = TEST_DATA_DIR "/test_stereo.flac";
 static constexpr const char *kOggPath      = TEST_DATA_DIR "/test_stereo.ogg";
 static constexpr const char *kMp3Path      = TEST_DATA_DIR "/test_stereo.mp3";
@@ -51,10 +51,10 @@ TEST_CASE("BGMPlayer: non-existent file -> loadFile returns false",
 // ── loadFile() with real WAV
 // ──────────────────────────────────────────────────
 
-TEST_CASE("BGMPlayer: loads Jazz-100-A.wav successfully", "[BGMPlayer]") {
-  juce::File f(kJazzWavPath);
+TEST_CASE("BGMPlayer: loads Jazz-100-A opus successfully", "[BGMPlayer]") {
+  juce::File f(kJazzOpusPath);
   if (!f.existsAsFile())
-    SKIP("Jazz-100-A.wav not found");
+    SKIP("Jazz-100-A.opus not found");
 
   BGMPlayer player;
   bool ok = player.loadFile(f);
@@ -66,10 +66,10 @@ TEST_CASE("BGMPlayer: loads Jazz-100-A.wav successfully", "[BGMPlayer]") {
   CHECK(player.getTotalSamples() > 0);
 }
 
-TEST_CASE("BGMPlayer: loaded WAV has stereo channels", "[BGMPlayer]") {
-  juce::File f(kJazzWavPath);
+TEST_CASE("BGMPlayer: loaded file has stereo channels", "[BGMPlayer]") {
+  juce::File f(kJazzOpusPath);
   if (!f.existsAsFile())
-    SKIP("Jazz-100-A.wav not found");
+    SKIP("Jazz-100-A.opus not found");
 
   BGMPlayer player;
   player.loadFile(f);
@@ -78,9 +78,9 @@ TEST_CASE("BGMPlayer: loaded WAV has stereo channels", "[BGMPlayer]") {
 
 TEST_CASE("BGMPlayer: sample count consistent with sample rate x duration",
           "[BGMPlayer]") {
-  juce::File f(kJazzWavPath);
+  juce::File f(kJazzOpusPath);
   if (!f.existsAsFile())
-    SKIP("Jazz-100-A.wav not found");
+    SKIP("Jazz-100-A.opus not found");
 
   BGMPlayer player;
   player.loadFile(f);
@@ -96,9 +96,9 @@ TEST_CASE("BGMPlayer: sample count consistent with sample rate x duration",
 // ─────────────────────────────────────────────────────
 
 TEST_CASE("BGMPlayer: unload() resets to clean state", "[BGMPlayer]") {
-  juce::File f(kJazzWavPath);
+  juce::File f(kJazzOpusPath);
   if (!f.existsAsFile())
-    SKIP("Jazz-100-A.wav not found");
+    SKIP("Jazz-100-A.opus not found");
 
   BGMPlayer player;
   player.loadFile(f);
@@ -112,9 +112,9 @@ TEST_CASE("BGMPlayer: unload() resets to clean state", "[BGMPlayer]") {
 }
 
 TEST_CASE("BGMPlayer: reload after unload works", "[BGMPlayer]") {
-  juce::File f(kJazzWavPath);
+  juce::File f(kJazzOpusPath);
   if (!f.existsAsFile())
-    SKIP("Jazz-100-A.wav not found");
+    SKIP("Jazz-100-A.opus not found");
 
   BGMPlayer player;
   player.loadFile(f);
@@ -143,9 +143,9 @@ TEST_CASE("BGMPlayer: initial position is zero", "[BGMPlayer]") {
 }
 
 TEST_CASE("BGMPlayer: seekToSample sets position", "[BGMPlayer]") {
-  juce::File f(kJazzWavPath);
+  juce::File f(kJazzOpusPath);
   if (!f.existsAsFile())
-    SKIP("Jazz-100-A.wav not found");
+    SKIP("Jazz-100-A.opus not found");
 
   BGMPlayer player;
   player.loadFile(f);
@@ -163,9 +163,9 @@ TEST_CASE("BGMPlayer: seekToSample sets position", "[BGMPlayer]") {
 }
 
 TEST_CASE("BGMPlayer: renderNextBlock advances position", "[BGMPlayer]") {
-  juce::File f(kJazzWavPath);
+  juce::File f(kJazzOpusPath);
   if (!f.existsAsFile())
-    SKIP("Jazz-100-A.wav not found");
+    SKIP("Jazz-100-A.opus not found");
 
   BGMPlayer player;
   player.loadFile(f);
@@ -185,9 +185,9 @@ TEST_CASE("BGMPlayer: renderNextBlock advances position", "[BGMPlayer]") {
 
 TEST_CASE("BGMPlayer: renderNextBlock produces non-silent output",
           "[BGMPlayer]") {
-  juce::File f(kJazzWavPath);
+  juce::File f(kJazzOpusPath);
   if (!f.existsAsFile())
-    SKIP("Jazz-100-A.wav not found");
+    SKIP("Jazz-100-A.opus not found");
 
   BGMPlayer player;
   player.loadFile(f);
@@ -207,9 +207,9 @@ TEST_CASE("BGMPlayer: renderNextBlock produces non-silent output",
 
 TEST_CASE("BGMPlayer: renderNextBlock does nothing when stopped",
           "[BGMPlayer]") {
-  juce::File f(kJazzWavPath);
+  juce::File f(kJazzOpusPath);
   if (!f.existsAsFile())
-    SKIP("Jazz-100-A.wav not found");
+    SKIP("Jazz-100-A.opus not found");
 
   BGMPlayer player;
   player.loadFile(f);
@@ -230,9 +230,9 @@ TEST_CASE("BGMPlayer: loop-by-seek pattern works (core looping feature)",
   // This tests the key behavior: the timing scheduler calls seekToSample()
   // to loop the BGM back to an earlier position.  After seeking, the BGM
   // must continue playing from the new position.
-  juce::File f(kJazzWavPath);
+  juce::File f(kJazzOpusPath);
   if (!f.existsAsFile())
-    SKIP("Jazz-100-A.wav not found");
+    SKIP("Jazz-100-A.opus not found");
 
   BGMPlayer player;
   player.loadFile(f);
@@ -260,9 +260,9 @@ TEST_CASE("BGMPlayer: loop-by-seek pattern works (core looping feature)",
 TEST_CASE("BGMPlayer: does NOT auto-stop at end of file", "[BGMPlayer]") {
   // The timing scheduler controls looping — BGMPlayer must not
   // unilaterally stop when it reaches the last sample.
-  juce::File f(kJazzWavPath);
+  juce::File f(kJazzOpusPath);
   if (!f.existsAsFile())
-    SKIP("Jazz-100-A.wav not found");
+    SKIP("Jazz-100-A.opus not found");
 
   BGMPlayer player;
   player.loadFile(f);
@@ -283,7 +283,7 @@ TEST_CASE("BGMPlayer: does NOT auto-stop at end of file", "[BGMPlayer]") {
 }
 
 // ── Multi-format loading ─────────────────────────────────────────────────────
-// Each test file is a 2-second stereo excerpt of Jazz-100-A.wav encoded with
+// Each test file is a 2-second stereo excerpt of Jazz-100-A.opus encoded with
 // ffmpeg.  Tests verify that BGMPlayer can load and render audio for every
 // format that registerBasicFormats() + OpusAudioFormat cover.
 

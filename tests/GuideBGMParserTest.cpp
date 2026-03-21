@@ -7,7 +7,7 @@
 
 // Bundled test data — see tests/testdata/NOTES.md for license info
 // Shift-JIS originals (marked binary in .gitattributes); UTF-8 copy alongside.
-static constexpr const char* kJazzWavPath     = TEST_DATA_DIR "/Jazz-100-A.wav";
+static constexpr const char* kJazzOpusPath    = TEST_DATA_DIR "/Jazz-100-A.opus";
 static constexpr const char* kJazzTxtPath     = TEST_DATA_DIR "/Jazz-100-A.txt";
 static constexpr const char* kJazzTxtUtf8Path = TEST_DATA_DIR "/Jazz-100-A-utf8.txt";
 
@@ -69,10 +69,10 @@ TEST_CASE("GuideBGMParser: Jazz-100-A.txt - named timing fields", "[GuideBGMPars
     CHECK(t.recordingEndMs     < t.bgmLoopMs);
 }
 
-TEST_CASE("GuideBGMParser: load() delegates to sibling .txt of .wav", "[GuideBGMParser]")
+TEST_CASE("GuideBGMParser: load() delegates to sibling .txt of audio file", "[GuideBGMParser]")
 {
-    juce::File f(kJazzWavPath);
-    if (!f.existsAsFile()) SKIP("Jazz-100-A.wav not found");
+    juce::File f(kJazzOpusPath);
+    if (!f.existsAsFile()) SKIP("Jazz-100-A.opus not found");
 
     auto result = GuideBGMParser::load(f);
     REQUIRE(result.has_value());
