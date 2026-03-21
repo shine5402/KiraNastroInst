@@ -4,6 +4,10 @@ project(KiraNastro VERSION 0.1.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Required on Linux: static libraries (ogg, opus, opusfile) are linked into
+# shared objects (VST3 .so, LV2 .so), so everything must be compiled with -fPIC.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # Third-party dependencies
 add_subdirectory(3rdparty/JUCE)
 

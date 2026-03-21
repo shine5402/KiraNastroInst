@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   build-macos:
     runs-on: macos-latest
@@ -16,9 +19,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Install Ninja
-        run: brew install ninja
 
       - name: Configure
         run: cmake --preset release-universal
@@ -61,8 +61,9 @@ jobs:
         run: cmake --build build/release --target KiraNastro_VST3
 
       - name: Package
+        shell: bash
         working-directory: build/release/KiraNastro_artefacts/Release
-        run: tar cJf "$env:GITHUB_WORKSPACE/KiraNastro-nightly-Windows.tar.xz" VST3/
+        run: tar cJf "$GITHUB_WORKSPACE/KiraNastro-nightly-Windows.tar.xz" VST3/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
