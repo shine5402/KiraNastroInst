@@ -12,7 +12,55 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if new commits since last nightly
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Always build on manual trigger
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "Manual trigger — building."
+            exit 0
+          fi
+
+          # Find the most recent nightly tag
+          latest_tag=$(gh release list --limit 100 | grep '^nightly-' | head -n1 | awk '{print $1}')
+          if [ -z "$latest_tag" ]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "No previous nightly found — building."
+            exit 0
+          fi
+
+          # Compare the tagged commit with HEAD
+          tagged_sha=$(gh release view "$latest_tag" --json targetCommitish -q '.targetCommitish')
+          # gh release targetCommitish may be a branch name; resolve via the tag itself
+          if ! git rev-parse "$tagged_sha" > /dev/null 2>&1; then
+            tagged_sha=$(git rev-parse "refs/tags/$latest_tag" 2>/dev/null || echo "")
+          fi
+          head_sha=$(git rev-parse HEAD)
+
+          if [ "$tagged_sha" = "$head_sha" ]; then
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            echo "No new commits since $latest_tag ($head_sha) — skipping."
+          else
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "New commits found (tag=$tagged_sha, HEAD=$head_sha) — building."
+          fi
+
   build-macos:
+    needs: check-changes
+    if: needs.check-changes.outputs.should_build == 'true'
     runs-on: macos-latest
     steps:
       - name: Checkout
@@ -41,6 +89,8 @@ jobs:
           retention-days: 1
 
   build-windows:
+    needs: check-changes
+    if: needs.check-changes.outputs.should_build == 'true'
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -72,6 +122,8 @@ jobs:
           retention-days: 1
 
   build-linux:
+    needs: check-changes
+    if: needs.check-changes.outputs.should_build == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
