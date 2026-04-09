@@ -43,11 +43,15 @@ jobs:
             exit 0
           fi
 
-          # Compare the tagged commit with HEAD
-          tagged_sha=$(gh release view "$latest_tag" --json targetCommitish -q '.targetCommitish')
-          # gh release targetCommitish may be a branch name; resolve via the tag itself
-          if ! git rev-parse "$tagged_sha" > /dev/null 2>&1; then
-            tagged_sha=$(git rev-parse "refs/tags/$latest_tag" 2>/dev/null || echo "")
+          # Compare the tagged commit with HEAD.
+          # Resolve the tag to a commit SHA directly — `gh release view`'s
+          # targetCommitish is usually a branch name ("main"), which would
+          # always resolve to current HEAD and defeat the check.
+          tagged_sha=$(git rev-parse "refs/tags/$latest_tag^{commit}" 2>/dev/null || echo "")
+          if [ -z "$tagged_sha" ]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            echo "Could not resolve tag $latest_tag locally — building."
+            exit 0
           fi
           head_sha=$(git rev-parse HEAD)
 
